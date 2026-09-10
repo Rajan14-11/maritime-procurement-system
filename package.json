@@ -1,0 +1,16 @@
+{
+  "name": "maritime-procurement-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Maritime Procurement Management System ERP Prototype",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "seed": "npm --prefix backend run seed",
+    "test:backend": "npm --prefix backend test"
+  },
+  "keywords": ["maritime", "procurement", "erp", "react19", "vite6", "prisma", "express"],
+  "author": "",
+  "license": "ISC"
+}
