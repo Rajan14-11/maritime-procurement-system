@@ -110,54 +110,189 @@ stateDiagram-v2
 
 ---
 
-### 3. Component & Module Connection Hierarchy
+### 3. Entity Relationship Diagram (ERD)
 
 ```mermaid
-graph LR
-    subgraph FrontendComponents["Frontend Hierarchy"]
-        MainLayout --> Sidebar
-        MainLayout --> TopNav
-        MainLayout --> OutletContent
-        
-        OutletContent --> DashboardView["Dashboard (KPIs, Charts, Feeds)"]
-        OutletContent --> PRView["PRs (Create, Detail Stepper, List)"]
-        OutletContent --> ApprovalsView["Approvals Queue (PR & PO Modals)"]
-        OutletContent --> RFQView["RFQs (Compare Matrix, Best Bid Badges)"]
-        OutletContent --> POView["POs (Official View, Delivery Tracker)"]
-        OutletContent --> DeliveriesView["Deliveries Log (GRN Badges)"]
-    end
+erDiagram
+    USER {
+        string id PK
+        string email UK
+        string name
+        string role "REQUESTER | APPROVER | PROCUREMENT_OFFICER | ADMIN"
+        string department
+        string status "ACTIVE | INACTIVE"
+    }
 
-    subgraph SharedServices["Client Infrastructure"]
-        apiClient["Centralized Axios/Fetch API Client"]
-        authStore["JWT Auth & Role State Context"]
-    end
+    VESSEL {
+        string id PK
+        string name
+        string imoNumber UK
+        string flag
+        string vesselType
+        string status "ACTIVE | INACTIVE"
+        int buildYear
+        float dWT
+    }
 
-    OutletContent --> apiClient
-    apiClient --> authStore
-```
+    VENDOR {
+        string id PK
+        string name
+        string email
+        string phone
+        string category
+        string status "ACTIVE | INACTIVE"
+        float rating
+        string paymentTerms
+    }
 
----
+    PURCHASE_REQUEST {
+        string id PK
+        string prNumber UK
+        string vesselId FK
+        string requesterId FK
+        string department
+        string priority "LOW | MEDIUM | HIGH | URGENT"
+        string status "DRAFT | PENDING_APPROVAL | APPROVED | ..."
+        datetime requiredDate
+        float estimatedTotal
+        string reason
+    }
 
-### 4. Mathematical Anti-Over-Delivery Enforcement Logic
+    PURCHASE_REQUEST_ITEM {
+        string id PK
+        string purchaseRequestId FK
+        string itemName
+        string partNumber
+        float quantity
+        string unit
+        float estimatedUnitPrice
+        float estimatedTotal
+    }
 
-```mermaid
-flowchart TD
-    StartDelivery(["Officer submits Goods Receipt\n(PO ID, Line Items with receivedQty)"]) --> ValidateStatus{"Is PO status\nORDERED or PARTIALLY_DELIVERED?"}
-    ValidateStatus -- No --> RejectStatus["HTTP 400: Cannot record delivery for PO in current status"]
-    ValidateStatus -- Yes --> FetchPO["Query PO & Items with current deliveredQty"]
+    APPROVAL {
+        string id PK
+        string entityType "PR | PO"
+        string entityId
+        string approverId FK
+        int stepNumber
+        string status "PENDING | APPROVED | REJECTED"
+        string comments
+    }
+
+    RFQ {
+        string id PK
+        string rfqNumber UK
+        string purchaseRequestId FK
+        string status "DRAFT | ISSUED | CLOSED | CANCELLED"
+        datetime deadline
+    }
+
+    RFQ_VENDOR {
+        string id PK
+        string rfqId FK
+        string vendorId FK
+        datetime invitedAt
+    }
+
+    QUOTATION {
+        string id PK
+        string rfqId FK
+        string vendorId FK
+        string quotationNumber
+        float unitPrice
+        float totalPrice
+        string currency
+        int leadTimeDays
+        int warrantyMonths
+        string paymentTerms
+        string status "SUBMITTED | ACCEPTED | REJECTED"
+        boolean isWinningQuote
+    }
+
+    PURCHASE_ORDER {
+        string id PK
+        string poNumber UK
+        string purchaseRequestId FK
+        string vendorId FK
+        string quotationId FK
+        string vesselId FK
+        string createdById FK
+        string status "DRAFT | PENDING_APPROVAL | ORDERED | DELIVERED | ..."
+        float subtotal
+        float taxAmount
+        float totalAmount
+        string paymentTerms
+        datetime deliveryDate
+    }
+
+    PURCHASE_ORDER_ITEM {
+        string id PK
+        string purchaseOrderId FK
+        string prItemId FK
+        string itemName
+        string partNumber
+        float quantity
+        float deliveredQuantity
+        float unitPrice
+        float totalPrice
+    }
+
+    GOODS_RECEIPT {
+        string id PK
+        string receiptNumber UK
+        string purchaseOrderId FK
+        string receivedById FK
+        datetime receivedDate
+        string deliveryNoteNumber
+        string condition "GOOD | DAMAGED | SHORTAGE | REJECTED"
+        string location
+    }
+
+    GOODS_RECEIPT_ITEM {
+        string id PK
+        string goodsReceiptId FK
+        string poItemId FK
+        float quantityReceived
+        string remarks
+    }
+
+    AUDIT_LOG {
+        string id PK
+        string userId
+        string userName
+        string userRole
+        string action
+        string entityType
+        string entityId
+        string description
+        datetime timestamp
+    }
+
+    USER ||--o{ PURCHASE_REQUEST : "submits"
+    USER ||--o{ APPROVAL : "authorizes"
+    USER ||--o{ PURCHASE_ORDER : "creates"
+    USER ||--o{ GOODS_RECEIPT : "receives"
     
-    FetchPO --> LoopCheck{"For each item:\nIs (currentDelivered + receivedQty) > orderedQty?"}
-    LoopCheck -- Yes --> RejectOver["HTTP 400: Over-delivery detected!\nCannot receive more than ordered quantity"]
-    LoopCheck -- No --> SaveGRN["Write GoodsReceipt & GoodsReceiptItem records"]
-    
-    SaveGRN --> UpdatePOItems["Increment deliveredQty on PO Line Items"]
-    UpdatePOItems --> CheckCompletion{"Are ALL line items\n100% delivered?"}
-    CheckCompletion -- Yes --> MarkDelivered["Set PO status = DELIVERED\nSet PR status = COMPLETED"]
-    CheckCompletion -- No --> MarkPartial["Set PO status = PARTIALLY_DELIVERED\nSet PR status = PARTIALLY_DELIVERED"]
-    
-    MarkDelivered --> WriteAudit["Write AUDIT_LOG entry with full event metadata"]
-    MarkPartial --> WriteAudit
-    WriteAudit --> EndSuccess(["Return HTTP 201 Created with updated PO state"])
+    VESSEL ||--o{ PURCHASE_REQUEST : "requisitions"
+    VESSEL ||--o{ PURCHASE_ORDER : "destination"
+
+    VENDOR ||--o{ RFQ_VENDOR : "invited"
+    VENDOR ||--o{ QUOTATION : "submits"
+    VENDOR ||--o{ PURCHASE_ORDER : "supplies"
+
+    PURCHASE_REQUEST ||--|{ PURCHASE_REQUEST_ITEM : "contains"
+    PURCHASE_REQUEST ||--o| RFQ : "bidding"
+    PURCHASE_REQUEST ||--o| PURCHASE_ORDER : "procured_via"
+
+    RFQ ||--|{ RFQ_VENDOR : "distributes_to"
+    RFQ ||--o{ QUOTATION : "collects"
+    QUOTATION ||--o| PURCHASE_ORDER : "awarded_in"
+
+    PURCHASE_ORDER ||--|{ PURCHASE_ORDER_ITEM : "comprises"
+    PURCHASE_ORDER ||--o{ GOODS_RECEIPT : "fulfilled_by"
+
+    GOODS_RECEIPT ||--|{ GOODS_RECEIPT_ITEM : "logs"
+    PURCHASE_ORDER_ITEM ||--o{ GOODS_RECEIPT_ITEM : "tracks_receipt"
 ```
 
 ---
