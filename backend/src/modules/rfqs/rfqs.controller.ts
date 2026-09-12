@@ -242,7 +242,7 @@ export async function createRfq(
       );
 
       return rfq;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.status(201).json({
       success: true,
@@ -452,7 +452,7 @@ export async function addQuotation(
       );
 
       return q;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     const refreshed = await prisma.quotation.findUnique({
       where: { id: quotation.id },
@@ -580,7 +580,7 @@ export async function selectQuotation(
       );
 
       return selectedQuote;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.json({
       success: true,

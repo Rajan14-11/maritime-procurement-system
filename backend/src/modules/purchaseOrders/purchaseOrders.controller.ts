@@ -354,7 +354,7 @@ export async function createPurchaseOrder(
       );
 
       return po;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.status(201).json({
       success: true,
@@ -425,7 +425,7 @@ export async function approvePurchaseOrder(
       );
 
       return updatedPo;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.json({
       success: true,
@@ -506,7 +506,7 @@ export async function rejectPurchaseOrder(
       );
 
       return updatedPo;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.json({
       success: true,

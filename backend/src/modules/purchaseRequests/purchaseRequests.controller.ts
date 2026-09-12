@@ -398,7 +398,7 @@ export async function createPurchaseRequest(
       }
 
       return pr;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.status(201).json({
       success: true,
@@ -463,7 +463,7 @@ export async function submitPurchaseRequest(
       );
 
       return updatedPr;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.json({
       success: true,
@@ -540,7 +540,7 @@ export async function approvePurchaseRequest(
       );
 
       return updatedPr;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.json({
       success: true,
@@ -620,7 +620,7 @@ export async function rejectPurchaseRequest(
       );
 
       return updatedPr;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.json({
       success: true,

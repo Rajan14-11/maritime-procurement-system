@@ -275,7 +275,7 @@ export const RfqDetail: React.FC = () => {
             </button>
           )}
 
-          {hasWinner && (
+          {hasWinner && canManageQuotes && (
             <button
               onClick={handleGeneratePo}
               disabled={generatingPo}
@@ -310,13 +310,19 @@ export const RfqDetail: React.FC = () => {
               )}
             </div>
           </div>
-          <button
-            onClick={handleGeneratePo}
-            disabled={generatingPo}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs whitespace-nowrap"
-          >
-            Issue Purchase Order &rarr;
-          </button>
+          {canManageQuotes ? (
+            <button
+              onClick={handleGeneratePo}
+              disabled={generatingPo}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs whitespace-nowrap"
+            >
+              Issue Purchase Order &rarr;
+            </button>
+          ) : (
+            <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold whitespace-nowrap">
+              Awaiting PO Issuance by Officer
+            </span>
+          )}
         </div>
       )}
 
@@ -477,13 +483,17 @@ export const RfqDetail: React.FC = () => {
                             Quotation Received
                           </span>
                         </div>
-                      ) : (
+                      ) : canManageQuotes && !hasWinner ? (
                         <button
                           onClick={() => openAddQuoteModal(rv.vendorId)}
                           className="px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-semibold hover:bg-blue-100"
                         >
                           + Record Quote
                         </button>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">
+                          Awaiting Quote
+                        </span>
                       )}
                     </div>
                   </div>

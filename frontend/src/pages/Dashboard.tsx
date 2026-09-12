@@ -82,7 +82,7 @@ export const Dashboard: React.FC = () => {
       case 'PROCUREMENT_OFFICER':
         return [
           {
-            title: 'Awaiting RFQs',
+            title: 'Approved PRs',
             value: kpis.approvedPrs ?? 0,
             icon: FileText,
             color: 'text-blue-600 bg-blue-50 border-blue-100',

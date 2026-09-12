@@ -126,7 +126,7 @@ export const VesselsList: React.FC = () => {
     }
   };
 
-  const canManage = user?.role === 'ADMIN' || user?.role === 'APPROVER';
+  const canManage = user?.role === 'ADMIN';
 
   return (
     <div className="space-y-6">

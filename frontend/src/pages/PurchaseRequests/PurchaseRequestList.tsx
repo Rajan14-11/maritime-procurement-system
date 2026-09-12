@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -21,17 +21,26 @@ import { useAuth } from '../../context/AuthContext.js';
 
 export const PurchaseRequestList: React.FC = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const canCreatePr = user?.role === 'REQUESTER' || user?.role === 'ADMIN';
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [vesselFilter, setVesselFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
+  // Filters initialized from URL query params
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [vesselFilter, setVesselFilter] = useState(searchParams.get('vesselId') || '');
+  const [priorityFilter, setPriorityFilter] = useState(searchParams.get('priority') || '');
+
+  // Keep state synchronized if URL search params change (e.g. clicking dashboard cards)
+  useEffect(() => {
+    const urlStatus = searchParams.get('status');
+    if (urlStatus !== null && urlStatus !== statusFilter) {
+      setStatusFilter(urlStatus);
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     try {
@@ -66,11 +75,25 @@ export const PurchaseRequestList: React.FC = () => {
     loadData();
   };
 
+  const handleStatusChange = (val: string) => {
+    setStatusFilter(val);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (val) {
+        next.set('status', val);
+      } else {
+        next.delete('status');
+      }
+      return next;
+    });
+  };
+
   const clearFilters = () => {
     setSearch('');
     setStatusFilter('');
     setVesselFilter('');
     setPriorityFilter('');
+    setSearchParams({});
   };
 
   return (
@@ -115,7 +138,7 @@ export const PurchaseRequestList: React.FC = () => {
             {/* Status Filter */}
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => handleStatusChange(e.target.value)}
               className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-600"
             >
               <option value="">All Statuses</option>

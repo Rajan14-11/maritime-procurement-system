@@ -14,6 +14,7 @@ export async function getDashboardSummary(
     const userId = req.user?.id;
 
     // Build role-scoped filters: Requesters only see their own PRs; Approvers/Officers only see submitted demands (no drafts)
+    const requesterPrScope = isRequester && userId ? { requesterId: userId } : {};
     const prScope = isRequester && userId
       ? { requesterId: userId }
       : isApproverOrOfficer
@@ -84,11 +85,11 @@ export async function getDashboardSummary(
         },
       }),
 
-      // Completed Procurements
+      // Completed Procurements (PR marked COMPLETED once delivery is 100% received)
       prisma.purchaseRequest.count({
         where: {
           status: PrStatus.COMPLETED,
-          ...prScope,
+          ...requesterPrScope,
         },
       }),
 
@@ -96,7 +97,7 @@ export async function getDashboardSummary(
       prisma.purchaseRequest.count({
         where: {
           status: PrStatus.APPROVED,
-          ...prScope,
+          ...requesterPrScope,
         },
       }),
 
@@ -104,7 +105,7 @@ export async function getDashboardSummary(
       prisma.purchaseRequest.count({
         where: {
           status: PrStatus.PENDING_APPROVAL,
-          ...prScope,
+          ...requesterPrScope,
         },
       }),
 
