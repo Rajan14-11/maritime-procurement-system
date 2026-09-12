@@ -36,9 +36,7 @@ export async function listUsers(
         department: true,
         status: true,
         vesselId: true,
-        vessel: {
-          select: { id: true, name: true, imoNumber: true, type: true },
-        },
+        vessel: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -71,9 +69,7 @@ export async function getUserById(
         department: true,
         status: true,
         vesselId: true,
-        vessel: {
-          select: { id: true, name: true, imoNumber: true, type: true },
-        },
+        vessel: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -160,9 +156,7 @@ export async function createUser(
         department: true,
         status: true,
         vesselId: true,
-        vessel: {
-          select: { id: true, name: true, imoNumber: true, type: true },
-        },
+        vessel: true,
         createdAt: true,
       },
     });
@@ -258,9 +252,7 @@ export async function updateUser(
         department: true,
         status: true,
         vesselId: true,
-        vessel: {
-          select: { id: true, name: true, imoNumber: true, type: true },
-        },
+        vessel: true,
         updatedAt: true,
       },
     });

@@ -92,7 +92,7 @@ export const UsersList: React.FC = () => {
     setPassword('');
     setRole(targetUser.role);
     setDepartment(targetUser.department || 'Operations');
-    setVesselId(targetUser.vesselId || '');
+    setVesselId(targetUser.vesselId || targetUser.vessel?.id || '');
     setStatus(targetUser.status);
     setFormError(null);
     setModalOpen(true);
@@ -293,20 +293,23 @@ export const UsersList: React.FC = () => {
                       {targetUser.department || 'Operations'}
                     </td>
                     <td className="py-3.5 px-4">
-                      {targetUser.role === 'REQUESTER' ? (
-                        targetUser.vessel ? (
+                      {targetUser.role === 'REQUESTER' ? (() => {
+                        const assignedVessel =
+                          targetUser.vessel ||
+                          vessels.find((v) => v.id === targetUser.vesselId);
+                        return assignedVessel ? (
                           <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium">
                             <Anchor className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                            <span className="truncate max-w-[150px]" title={targetUser.vessel.name}>
-                              {targetUser.vessel.name}
+                            <span className="truncate max-w-[150px]" title={assignedVessel.name}>
+                              {assignedVessel.name}
                             </span>
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
                             Unassigned
                           </span>
-                        )
-                      ) : (
+                        );
+                      })() : (
                         <span className="text-slate-400 text-[11px] italic">Fleet-wide (N/A)</span>
                       )}
                     </td>
