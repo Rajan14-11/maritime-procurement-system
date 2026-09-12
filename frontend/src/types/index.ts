@@ -264,6 +264,7 @@ export interface DashboardSummary {
     purchaseRequests: number;
     pendingApprovals: number;
     approvedPrs?: number;
+    awaitingRfqPrs?: number;
     pendingReviewPrs?: number;
     openRfqs: number;
     activePos: number;

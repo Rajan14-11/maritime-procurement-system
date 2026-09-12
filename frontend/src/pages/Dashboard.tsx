@@ -86,8 +86,9 @@ export const Dashboard: React.FC = () => {
             value: kpis.approvedPrs ?? 0,
             icon: FileText,
             color: 'text-blue-600 bg-blue-50 border-blue-100',
-            href: '/purchase-requests?status=APPROVED',
-            alert: (kpis.approvedPrs ?? 0) > 0,
+            href: '/purchase-requests?status=APPROVED_ALL',
+            alert: (kpis.awaitingRfqPrs ?? 0) > 0,
+            subtitle: kpis.awaitingRfqPrs ? `${kpis.awaitingRfqPrs} awaiting RFQ` : undefined,
           },
           {
             title: 'Open RFQs',
@@ -149,7 +150,8 @@ export const Dashboard: React.FC = () => {
             value: kpis.approvedPrs ?? 0,
             icon: CheckCircle2,
             color: 'text-sky-600 bg-sky-50 border-sky-100',
-            href: '/purchase-requests?status=APPROVED',
+            href: '/purchase-requests?status=APPROVED_ALL',
+            subtitle: kpis.awaitingRfqPrs ? `${kpis.awaitingRfqPrs} awaiting sourcing` : undefined,
           },
           {
             title: 'Active Orders',
@@ -336,6 +338,11 @@ export const Dashboard: React.FC = () => {
               {stat.value}
             </p>
             <p className="text-xs font-medium text-slate-500 mt-0.5">{stat.title}</p>
+            {stat.subtitle && (
+              <p className="text-[11px] font-medium text-amber-600 mt-1 flex items-center gap-1">
+                <span>●</span> {stat.subtitle}
+              </p>
+            )}
           </Link>
         ))}
       </div>

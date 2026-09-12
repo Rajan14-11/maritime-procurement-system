@@ -46,7 +46,17 @@ export async function listPurchaseRequests(
     const isApproverOrOfficer =
       req.user?.role === UserRole.APPROVER || req.user?.role === UserRole.PROCUREMENT_OFFICER;
 
-    if (isApproverOrOfficer) {
+    if (status === 'APPROVED_ALL') {
+      where.status = {
+        in: [
+          PrStatus.APPROVED,
+          PrStatus.RFQ_CREATED,
+          PrStatus.VENDOR_SELECTED,
+          PrStatus.PO_CREATED,
+          PrStatus.COMPLETED,
+        ],
+      };
+    } else if (isApproverOrOfficer) {
       // Approvers and Procurement Officers only see submitted demands, never unsubmitted DRAFTs
       if (status && status !== PrStatus.DRAFT && Object.values(PrStatus).includes(status as PrStatus)) {
         where.status = status as string;

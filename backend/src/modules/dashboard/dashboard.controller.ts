@@ -32,6 +32,7 @@ export async function getDashboardSummary(
       pendingDeliveries,
       completedProcurements,
       approvedPrs,
+      awaitingRfqPrs,
       pendingReviewPrs,
       totalSpendResult,
     ] = await Promise.all([
@@ -93,7 +94,24 @@ export async function getDashboardSummary(
         },
       }),
 
-      // Approved PRs awaiting RFQ sourcing (PR status = APPROVED)
+      // All Approved PRs / Demands across the procurement lifecycle
+      // Once approved, PRs proceed: APPROVED -> RFQ_CREATED -> VENDOR_SELECTED -> PO_CREATED -> COMPLETED
+      prisma.purchaseRequest.count({
+        where: {
+          status: {
+            in: [
+              PrStatus.APPROVED,
+              PrStatus.RFQ_CREATED,
+              PrStatus.VENDOR_SELECTED,
+              PrStatus.PO_CREATED,
+              PrStatus.COMPLETED,
+            ],
+          },
+          ...requesterPrScope,
+        },
+      }),
+
+      // Approved PRs specifically awaiting RFQ sourcing (PR status = APPROVED)
       prisma.purchaseRequest.count({
         where: {
           status: PrStatus.APPROVED,
@@ -183,6 +201,7 @@ export async function getDashboardSummary(
               ? pendingPrApprovals + pendingPoApprovals
               : 0,
           approvedPrs,
+          awaitingRfqPrs,
           pendingReviewPrs,
           openRfqs,
           activePos,
