@@ -99,7 +99,7 @@ export const MainLayout: React.FC = () => {
       name: 'Vessels Fleet',
       href: '/vessels',
       icon: Anchor,
-      roles: ['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER', 'REQUESTER'],
+      roles: ['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER'],
     },
     {
       name: 'User Management',
@@ -278,6 +278,12 @@ export const MainLayout: React.FC = () => {
               >
                 {user?.role}
               </span>
+              {user?.vessel && (
+                <div className="flex items-center gap-1 text-[11px] text-blue-400 mt-1 truncate" title={user.vessel.name}>
+                  <Anchor className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{user.vessel.name}</span>
+                </div>
+              )}
             </div>
           </div>
           <button

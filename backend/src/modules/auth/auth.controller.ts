@@ -22,6 +22,11 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
+      include: {
+        vessel: {
+          select: { id: true, name: true, imoNumber: true, status: true },
+        },
+      },
     });
 
     if (!user) {
@@ -83,6 +88,8 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
           role: user.role,
           department: user.department,
           status: user.status,
+          vesselId: user.vesselId,
+          vessel: user.vessel,
         },
       },
     });

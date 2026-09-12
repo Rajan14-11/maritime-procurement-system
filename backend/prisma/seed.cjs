@@ -24,57 +24,7 @@ async function main() {
   await prisma.vessel.deleteMany();
   await prisma.user.deleteMany();
 
-  // 2. Seed Users
-  console.log('Seeding Demo Users...');
-  const passwordHash = await bcrypt.hash('Password123!', 10);
-
-  const chiefEngineer = await prisma.user.create({
-    data: {
-      name: 'Chief Engineer',
-      email: 'chief.engineer@demo.com',
-      passwordHash,
-      role: 'REQUESTER',
-      department: 'Engine',
-      status: 'ACTIVE',
-    },
-  });
-
-  const procurementOfficer = await prisma.user.create({
-    data: {
-      name: 'Procurement Officer',
-      email: 'procurement@demo.com',
-      passwordHash,
-      role: 'PROCUREMENT_OFFICER',
-      department: 'Procurement',
-      status: 'ACTIVE',
-    },
-  });
-
-  const procurementManager = await prisma.user.create({
-    data: {
-      name: 'Procurement Manager',
-      email: 'manager@demo.com',
-      passwordHash,
-      role: 'APPROVER',
-      department: 'Procurement Management',
-      status: 'ACTIVE',
-    },
-  });
-
-  const admin = await prisma.user.create({
-    data: {
-      name: 'System Administrator',
-      email: 'admin@demo.com',
-      passwordHash,
-      role: 'ADMIN',
-      department: 'Administration',
-      status: 'ACTIVE',
-    },
-  });
-
-  console.log('✓ 4 Users created (Password: Password123!)');
-
-  // 3. Seed Vessels
+  // 2. Seed Vessels first
   console.log('Seeding Vessels...');
   const oceanStar = await prisma.vessel.create({
     data: {
@@ -117,6 +67,72 @@ async function main() {
   });
 
   console.log('✓ 4 Vessels created');
+
+  // 3. Seed Users
+  console.log('Seeding Demo Users...');
+  const passwordHash = await bcrypt.hash('Password123!', 10);
+
+  const chiefEngineer = await prisma.user.create({
+    data: {
+      name: 'Chief Engineer',
+      email: 'chief.engineer@demo.com',
+      passwordHash,
+      role: 'REQUESTER',
+      department: 'Engine',
+      status: 'ACTIVE',
+      vesselId: oceanStar.id,
+    },
+  });
+
+  const secondEngineer = await prisma.user.create({
+    data: {
+      name: '2nd Engineer Neptune',
+      email: 'engineer.neptune@demo.com',
+      passwordHash,
+      role: 'REQUESTER',
+      department: 'Engine',
+      status: 'ACTIVE',
+      vesselId: neptune.id,
+    },
+  });
+
+  const procurementOfficer = await prisma.user.create({
+    data: {
+      name: 'Procurement Officer',
+      email: 'procurement@demo.com',
+      passwordHash,
+      role: 'PROCUREMENT_OFFICER',
+      department: 'Procurement',
+      status: 'ACTIVE',
+      vesselId: null,
+    },
+  });
+
+  const procurementManager = await prisma.user.create({
+    data: {
+      name: 'Procurement Manager',
+      email: 'manager@demo.com',
+      passwordHash,
+      role: 'APPROVER',
+      department: 'Procurement Management',
+      status: 'ACTIVE',
+      vesselId: null,
+    },
+  });
+
+  const admin = await prisma.user.create({
+    data: {
+      name: 'System Administrator',
+      email: 'admin@demo.com',
+      passwordHash,
+      role: 'ADMIN',
+      department: 'Administration',
+      status: 'ACTIVE',
+      vesselId: null,
+    },
+  });
+
+  console.log('✓ Demo Users created with assigned vessels (Password: Password123!)');
 
   // 4. Seed Vendors
   console.log('Seeding Vendors...');
@@ -187,7 +203,7 @@ async function main() {
   const pr1002 = await prisma.purchaseRequest.create({
     data: {
       prNumber: 'PR-1002',
-      vesselId: neptune.id,
+      vesselId: oceanStar.id,
       department: 'Deck',
       priority: 'MEDIUM',
       requiredDate: pr1002Date,
@@ -227,14 +243,14 @@ async function main() {
   const pr1003 = await prisma.purchaseRequest.create({
     data: {
       prNumber: 'PR-1003',
-      vesselId: atlantic.id,
+      vesselId: neptune.id,
       department: 'Engine',
       priority: 'HIGH',
       requiredDate: pr1003Date,
       estimatedTotal: 65000,
       reason: 'Cylinder lubricant stock running below minimum voyage threshold.',
       status: 'RFQ_CREATED',
-      requesterId: chiefEngineer.id,
+      requesterId: secondEngineer.id,
       items: {
         create: [
           {
@@ -274,7 +290,7 @@ async function main() {
   await prisma.purchaseRequest.create({
     data: {
       prNumber: 'PR-1004',
-      vesselId: pacific.id,
+      vesselId: oceanStar.id,
       department: 'Navigation',
       priority: 'HIGH',
       requiredDate: pr1004Date,
@@ -316,7 +332,7 @@ async function main() {
         action: 'CREATE_PURCHASE_REQUEST',
         entityType: 'PURCHASE_REQUEST',
         entityId: pr1002.id,
-        description: 'Purchase request PR-1002 created for vessel MV Neptune.',
+        description: 'Purchase request PR-1002 created for vessel MV Ocean Star.',
       },
       {
         userId: procurementManager.id,
@@ -326,6 +342,15 @@ async function main() {
         entityType: 'PURCHASE_REQUEST',
         entityId: pr1002.id,
         description: 'Purchase request PR-1002 approved by Procurement Manager.',
+      },
+      {
+        userId: secondEngineer.id,
+        userName: secondEngineer.name,
+        userRole: secondEngineer.role,
+        action: 'CREATE_PURCHASE_REQUEST',
+        entityType: 'PURCHASE_REQUEST',
+        entityId: pr1003.id,
+        description: 'Purchase request PR-1003 created for vessel MV Neptune.',
       },
       {
         userId: procurementOfficer.id,

@@ -36,6 +36,13 @@ export interface AuthUser {
   role: UserRole;
   department?: string | null;
   status: UserStatus;
+  vesselId?: string | null;
+  vessel?: {
+    id: string;
+    name: string;
+    imoNumber: string;
+    status: VesselStatus;
+  } | null;
 }
 
 export interface AuthenticatedRequest extends Request {

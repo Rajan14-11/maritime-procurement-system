@@ -12,6 +12,16 @@ export async function listVessels(
     const { search, status } = req.query;
 
     const where: any = {};
+
+    // Requester scoping: Chief Engineers may only view their assigned vessel
+    if (req.user?.role === UserRole.REQUESTER) {
+      if (req.user.vesselId) {
+        where.id = req.user.vesselId;
+      } else {
+        where.id = '__no_assigned_vessel__';
+      }
+    }
+
     if (search) {
       where.OR = [
         { name: { contains: String(search) } },
@@ -51,6 +61,15 @@ export async function getVesselById(
       res.status(404).json({
         success: false,
         message: 'Vessel not found.',
+      });
+      return;
+    }
+
+    // Requester scoping guard: Requesters cannot access other vessels
+    if (req.user?.role === UserRole.REQUESTER && req.user.vesselId !== id) {
+      res.status(403).json({
+        success: false,
+        message: 'Forbidden: You are only authorized to view your assigned vessel.',
       });
       return;
     }

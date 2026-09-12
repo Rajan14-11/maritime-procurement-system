@@ -10,9 +10,10 @@ import {
   Edit2,
   Power,
   Lock,
+  Anchor,
 } from 'lucide-react';
-import { usersApi } from '../../services/api.js';
-import { User, UserRole, UserStatus } from '../../types/index.js';
+import { usersApi, vesselsApi } from '../../services/api.js';
+import { User, UserRole, UserStatus, Vessel } from '../../types/index.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
 import { Card } from '../../components/Card.js';
 import { Modal } from '../../components/Modal.js';
@@ -21,6 +22,7 @@ import { useAuth } from '../../context/AuthContext.js';
 export const UsersList: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
+  const [vessels, setVessels] = useState<Vessel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +38,7 @@ export const UsersList: React.FC = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('REQUESTER');
   const [department, setDepartment] = useState('Engine');
+  const [vesselId, setVesselId] = useState<string>('');
   const [status, setStatus] = useState<UserStatus>('ACTIVE');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -60,6 +63,15 @@ export const UsersList: React.FC = () => {
     loadUsers();
   }, [roleFilter]);
 
+  useEffect(() => {
+    vesselsApi
+      .list({ status: 'ACTIVE' })
+      .then((res) => {
+        setVessels(res.vessels || []);
+      })
+      .catch(() => {});
+  }, []);
+
   const openCreateModal = () => {
     setEditingUser(null);
     setName('');
@@ -67,6 +79,7 @@ export const UsersList: React.FC = () => {
     setPassword('Password123!');
     setRole('REQUESTER');
     setDepartment('Engine');
+    setVesselId('');
     setStatus('ACTIVE');
     setFormError(null);
     setModalOpen(true);
@@ -79,6 +92,7 @@ export const UsersList: React.FC = () => {
     setPassword('');
     setRole(targetUser.role);
     setDepartment(targetUser.department || 'Operations');
+    setVesselId(targetUser.vesselId || '');
     setStatus(targetUser.status);
     setFormError(null);
     setModalOpen(true);
@@ -114,11 +128,14 @@ export const UsersList: React.FC = () => {
 
     try {
       setSaving(true);
+      const assignedVessel = role === 'REQUESTER' ? (vesselId || null) : null;
+
       if (editingUser) {
         await usersApi.update(editingUser.id, {
           name: name.trim(),
           role,
           department: department.trim(),
+          vesselId: assignedVessel,
           status,
           password: password.trim() ? password.trim() : undefined,
         });
@@ -129,6 +146,7 @@ export const UsersList: React.FC = () => {
           password: password.trim(),
           role,
           department: department.trim(),
+          vesselId: assignedVessel,
         });
       }
 
@@ -243,6 +261,7 @@ export const UsersList: React.FC = () => {
                   <th className="py-3.5 px-4">Email Address</th>
                   <th className="py-3.5 px-4">System Role</th>
                   <th className="py-3.5 px-4">Department</th>
+                  <th className="py-3.5 px-4">Assigned Vessel</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-6 text-right">Actions</th>
                 </tr>
@@ -272,6 +291,24 @@ export const UsersList: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">
                       {targetUser.department || 'Operations'}
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {targetUser.role === 'REQUESTER' ? (
+                        targetUser.vessel ? (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium">
+                            <Anchor className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span className="truncate max-w-[150px]" title={targetUser.vessel.name}>
+                              {targetUser.vessel.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
+                            Unassigned
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-400 text-[11px] italic">Fleet-wide (N/A)</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4">
                       <StatusBadge status={targetUser.status} size="sm" />
@@ -392,6 +429,33 @@ export const UsersList: React.FC = () => {
               />
             </div>
           </div>
+
+          {role === 'REQUESTER' && (
+            <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-lg space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-800 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Anchor className="w-3.5 h-3.5 text-blue-600" />
+                  Assigned Vessel <span className="text-rose-500">*</span>
+                </span>
+                <span className="text-[10px] text-blue-700 font-normal">Chief Engineer Scope</span>
+              </label>
+              <select
+                value={vesselId}
+                onChange={(e) => setVesselId(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-blue-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600"
+              >
+                <option value="">-- Select Vessel Assignment --</option>
+                {vessels.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.type} • IMO {v.imoNumber})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500">
+                This user will only be able to create PRs and view data for this specific vessel.
+              </p>
+            </div>
+          )}
 
           {editingUser && (
             <div>

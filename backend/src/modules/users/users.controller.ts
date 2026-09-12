@@ -35,6 +35,10 @@ export async function listUsers(
         role: true,
         department: true,
         status: true,
+        vesselId: true,
+        vessel: {
+          select: { id: true, name: true, imoNumber: true, type: true },
+        },
         createdAt: true,
         updatedAt: true,
       },
@@ -66,6 +70,10 @@ export async function getUserById(
         role: true,
         department: true,
         status: true,
+        vesselId: true,
+        vessel: {
+          select: { id: true, name: true, imoNumber: true, type: true },
+        },
         createdAt: true,
         updatedAt: true,
       },
@@ -94,7 +102,7 @@ export async function createUser(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { name, email, password, role, department } = req.body;
+    const { name, email, password, role, department, vesselId } = req.body;
 
     if (!name || !email || !password || !role) {
       res.status(400).json({
@@ -110,6 +118,14 @@ export async function createUser(
         message: 'Password must be at least 8 characters long.',
       });
       return;
+    }
+
+    if (vesselId && role === UserRole.REQUESTER) {
+      const targetVessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
+      if (!targetVessel) {
+        res.status(400).json({ success: false, message: 'Assigned vessel not found.' });
+        return;
+      }
     }
 
     const existing = await prisma.user.findUnique({
@@ -134,6 +150,7 @@ export async function createUser(
         role: role as UserRole,
         department: department?.trim() || null,
         status: UserStatus.ACTIVE,
+        vesselId: role === UserRole.REQUESTER ? (vesselId || null) : null,
       },
       select: {
         id: true,
@@ -142,6 +159,10 @@ export async function createUser(
         role: true,
         department: true,
         status: true,
+        vesselId: true,
+        vessel: {
+          select: { id: true, name: true, imoNumber: true, type: true },
+        },
         createdAt: true,
       },
     });
@@ -153,7 +174,7 @@ export async function createUser(
       action: 'CREATE_USER',
       entityType: 'USER',
       entityId: user.id,
-      description: `Created user ${user.name} (${user.email}) with role ${user.role}.`,
+      description: `Created user ${user.name} (${user.email}) with role ${user.role}.${user.vessel ? ` Assigned vessel: ${user.vessel.name}.` : ''}`,
     });
 
     res.status(201).json({
@@ -173,9 +194,12 @@ export async function updateUser(
 ): Promise<void> {
   try {
     const id = req.params.id as string;
-    const { name, role, department, status, password } = req.body;
+    const { name, role, department, status, password, vesselId } = req.body;
 
-    const existing = await prisma.user.findUnique({ where: { id } });
+    const existing = await prisma.user.findUnique({
+      where: { id },
+      include: { vessel: true },
+    });
     if (!existing) {
       res.status(404).json({
         success: false,
@@ -186,11 +210,41 @@ export async function updateUser(
 
     const updateData: any = {};
     if (name) updateData.name = name.trim();
-    if (role && Object.values(UserRole).includes(role)) updateData.role = role;
+    if (role && Object.values(UserRole).includes(role)) {
+      updateData.role = role;
+      if (role !== UserRole.REQUESTER) {
+        updateData.vesselId = null;
+      }
+    }
     if (department !== undefined) updateData.department = department?.trim() || null;
     if (status && Object.values(UserStatus).includes(status)) updateData.status = status;
     if (password && password.length >= 8) {
       updateData.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    let vesselChangeDesc = '';
+    if (vesselId !== undefined) {
+      const effectiveRole = updateData.role || existing.role;
+      if (effectiveRole === UserRole.REQUESTER) {
+        if (vesselId) {
+          const newVessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
+          if (!newVessel) {
+            res.status(400).json({ success: false, message: 'Assigned vessel not found.' });
+            return;
+          }
+          updateData.vesselId = vesselId;
+          if (vesselId !== existing.vesselId) {
+            vesselChangeDesc = ` Vessel assignment changed from ${existing.vessel?.name || 'None'} to ${newVessel.name}.`;
+          }
+        } else {
+          updateData.vesselId = null;
+          if (existing.vesselId) {
+            vesselChangeDesc = ` Vessel assignment removed (previously ${existing.vessel?.name || 'None'}).`;
+          }
+        }
+      } else {
+        updateData.vesselId = null;
+      }
     }
 
     const updated = await prisma.user.update({
@@ -203,6 +257,10 @@ export async function updateUser(
         role: true,
         department: true,
         status: true,
+        vesselId: true,
+        vessel: {
+          select: { id: true, name: true, imoNumber: true, type: true },
+        },
         updatedAt: true,
       },
     });
@@ -214,8 +272,24 @@ export async function updateUser(
       action: 'UPDATE_USER',
       entityType: 'USER',
       entityId: updated.id,
-      description: `Updated user profile for ${updated.name} (Status: ${updated.status}, Role: ${updated.role}).`,
+      description: `Updated user profile for ${updated.name} (Status: ${updated.status}, Role: ${updated.role}).${vesselChangeDesc}`,
     });
+
+    if (vesselChangeDesc) {
+      await logAudit({
+        userId: req.user?.id,
+        userName: req.user?.name || 'Admin',
+        userRole: req.user?.role || 'ADMIN',
+        action: 'VESSEL_ASSIGNMENT_CHANGED',
+        entityType: 'USER',
+        entityId: updated.id,
+        description: `Vessel assignment changed for ${updated.name}.${vesselChangeDesc}`,
+        metadata: {
+          previousVesselId: existing.vesselId,
+          newVesselId: updated.vesselId,
+        },
+      });
+    }
 
     res.json({
       success: true,

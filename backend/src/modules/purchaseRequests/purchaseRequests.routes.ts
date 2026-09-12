@@ -3,6 +3,7 @@ import {
   listPurchaseRequests,
   getPurchaseRequestById,
   createPurchaseRequest,
+  updatePurchaseRequest,
   submitPurchaseRequest,
   approvePurchaseRequest,
   rejectPurchaseRequest,
@@ -17,6 +18,7 @@ router.use(authenticateToken);
 router.get('/', listPurchaseRequests);
 router.get('/:id', getPurchaseRequestById);
 router.post('/', createPurchaseRequest);
+router.patch('/:id', updatePurchaseRequest);
 router.post('/:id/submit', submitPurchaseRequest);
 router.post(
   '/:id/approve',

@@ -40,6 +40,15 @@ export async function authenticateToken(
         role: true,
         department: true,
         status: true,
+        vesselId: true,
+        vessel: {
+          select: {
+            id: true,
+            name: true,
+            imoNumber: true,
+            status: true,
+          },
+        },
       },
     });
 

@@ -95,6 +95,8 @@ model User {
   role         UserRole   @default(REQUESTER)
   department   String?
   status       UserStatus @default(ACTIVE)
+  vesselId     String?
+  vessel       Vessel?    @relation("UserAssignedVessel", fields: [vesselId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -117,6 +119,7 @@ model Vessel {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
+  assignedUsers    User[]            @relation("UserAssignedVessel")
   purchaseRequests PurchaseRequest[]
   purchaseOrders   PurchaseOrder[]
 

@@ -34,6 +34,8 @@ export interface User {
   role: UserRole;
   department?: string | null;
   status: UserStatus;
+  vesselId?: string | null;
+  vessel?: Vessel | null;
   createdAt?: string;
   updatedAt?: string;
 }

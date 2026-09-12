@@ -9,7 +9,10 @@ import {
   AlertCircle,
   Save,
   Send,
+  Anchor,
+  Lock,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext.js';
 import { purchaseRequestsApi, vesselsApi } from '../../services/api.js';
 import { Vessel } from '../../types/index.js';
 import { Card } from '../../components/Card.js';
@@ -23,6 +26,7 @@ interface ItemForm {
 }
 
 export const CreatePurchaseRequest: React.FC = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,24 +53,34 @@ export const CreatePurchaseRequest: React.FC = () => {
   ]);
 
   useEffect(() => {
-    vesselsApi
-      .list({ status: 'ACTIVE' })
-      .then((res) => {
-        const activeVessels = res.vessels || [];
-        setVessels(activeVessels);
-        if (activeVessels.length > 0) {
-          setVesselId(activeVessels[0].id);
-        }
-      })
-      .catch((err) => {
-        setError('Failed to load fleet vessels.');
-      });
-  }, []);
+    if (user?.role === 'REQUESTER') {
+      if (user.vesselId) {
+        setVesselId(user.vesselId);
+      }
+    } else {
+      vesselsApi
+        .list({ status: 'ACTIVE' })
+        .then((res) => {
+          const activeVessels = res.vessels || [];
+          setVessels(activeVessels);
+          if (activeVessels.length > 0) {
+            setVesselId(activeVessels[0].id);
+          }
+        })
+        .catch((err) => {
+          setError('Failed to load fleet vessels.');
+        });
+    }
+  }, [user]);
 
   // Pre-fill exact PRD Section 45 primary scenario
   const fillDemoScenario = () => {
-    const oceanStar = vessels.find((v) => v.name.includes('Ocean Star')) || vessels[0];
-    if (oceanStar) setVesselId(oceanStar.id);
+    if (user?.role === 'REQUESTER') {
+      if (user.vesselId) setVesselId(user.vesselId);
+    } else {
+      const oceanStar = vessels.find((v) => v.name.includes('Ocean Star')) || vessels[0];
+      if (oceanStar) setVesselId(oceanStar.id);
+    }
     setDepartment('Engine');
     setPriority('HIGH');
     const targetDate = new Date();
@@ -120,6 +134,10 @@ export const CreatePurchaseRequest: React.FC = () => {
     setError(null);
 
     // Validation
+    if (user?.role === 'REQUESTER' && !user.vesselId) {
+      setError('Your account is not assigned to a vessel. Only assigned requesters can create purchase requests.');
+      return;
+    }
     if (!vesselId) {
       setError('Please select a vessel.');
       return;
@@ -217,26 +235,72 @@ export const CreatePurchaseRequest: React.FC = () => {
         </div>
       )}
 
+      {user?.role === 'REQUESTER' && !user?.vesselId && (
+        <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3 text-xs text-amber-900 font-medium">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-amber-950">Vessel Assignment Required</p>
+            <p className="text-[11px] text-amber-800 mt-0.5">
+              Your account is currently not assigned to any vessel in the fleet. Requesters can only raise purchase requests for their assigned vessel. Please contact an Administrator to assign your vessel in User Management.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Form Content */}
       <div className="space-y-6">
         {/* Header Metadata Card */}
         <Card title="1. Request Header & Vessel Association">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Target Vessel <span className="text-rose-500">*</span>
-              </label>
-              <select
-                value={vesselId}
-                onChange={(e) => setVesselId(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-              >
-                {vessels.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name} ({v.type})
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Target Vessel <span className="text-rose-500">*</span>
+                </label>
+                {user?.role === 'REQUESTER' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-blue-700 font-medium bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    <Lock className="w-2.5 h-2.5" /> Assigned Vessel
+                  </span>
+                )}
+              </div>
+
+              {user?.role === 'REQUESTER' ? (
+                user.vessel ? (
+                  <div className="w-full px-3 py-2.5 text-xs border border-blue-200 bg-blue-50/60 rounded-lg text-slate-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-md bg-blue-100 flex items-center justify-center text-blue-700 shrink-0">
+                        <Anchor className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{user.vessel.name}</p>
+                        <p className="text-[11px] text-slate-500 truncate">
+                          {user.vessel.type} • IMO {user.vessel.imoNumber}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase font-mono tracking-wider font-semibold text-blue-800 bg-white border border-blue-200 px-2 py-0.5 rounded shrink-0 ml-2">
+                      Chief Engineer
+                    </span>
+                  </div>
+                ) : (
+                  <div className="w-full px-3 py-2.5 text-xs border border-amber-300 bg-amber-50 rounded-lg text-amber-800 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>No vessel assigned to your account.</span>
+                  </div>
+                )
+              ) : (
+                <select
+                  value={vesselId}
+                  onChange={(e) => setVesselId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                >
+                  {vessels.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.type})
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
@@ -449,7 +513,7 @@ export const CreatePurchaseRequest: React.FC = () => {
           <button
             type="button"
             onClick={() => handleSubmit(false)}
-            disabled={loading}
+            disabled={loading || (user?.role === 'REQUESTER' && !user?.vesselId)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 shadow-2xs"
           >
             <Save className="w-4 h-4 text-slate-500" />
@@ -459,7 +523,7 @@ export const CreatePurchaseRequest: React.FC = () => {
           <button
             type="button"
             onClick={() => handleSubmit(true)}
-            disabled={loading}
+            disabled={loading || (user?.role === 'REQUESTER' && !user?.vesselId)}
             className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
           >
             <Send className="w-4 h-4" />

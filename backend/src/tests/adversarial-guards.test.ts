@@ -51,7 +51,9 @@ async function runAdversarialTests() {
     const approver = await prisma.user.findFirst({ where: { role: UserRole.APPROVER } });
     const officer = await prisma.user.findFirst({ where: { role: UserRole.PROCUREMENT_OFFICER } });
     const admin = await prisma.user.findFirst({ where: { role: UserRole.ADMIN } });
-    const vessel = await prisma.vessel.findFirst({ where: { status: 'ACTIVE' } });
+    const vessel = requester?.vesselId
+      ? await prisma.vessel.findUnique({ where: { id: requester.vesselId } })
+      : await prisma.vessel.findFirst({ where: { status: 'ACTIVE' } });
     const vendors = await prisma.vendor.findMany({ where: { status: 'ACTIVE' }, take: 3 });
 
     if (!requester || !approver || !officer || !admin || !vessel || vendors.length < 2) {

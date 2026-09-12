@@ -22,6 +22,9 @@ export async function listPurchaseRequests(
 
     if (req.user?.role === UserRole.REQUESTER) {
       where.requesterId = req.user.id;
+      if (req.user.vesselId) {
+        where.vesselId = req.user.vesselId;
+      }
     }
 
     if (search) {
@@ -87,8 +90,10 @@ export async function getPurchaseRequestById(
   try {
     const id = req.params.id as string;
 
-    const pr = await prisma.purchaseRequest.findUnique({
-      where: { id },
+    const pr = await prisma.purchaseRequest.findFirst({
+      where: {
+        OR: [{ id }, { prNumber: id }],
+      },
       include: {
         vessel: true,
         requester: {
@@ -177,10 +182,31 @@ export async function createPurchaseRequest(
       submitImmediately = true,
     } = req.body;
 
-    if (!vesselId) {
-      res.status(400).json({ success: false, message: 'Vessel is mandatory.' });
-      return;
+    let targetVesselId = vesselId;
+
+    if (req.user?.role === UserRole.REQUESTER) {
+      if (!req.user.vesselId) {
+        res.status(400).json({
+          success: false,
+          message: 'Requester is not assigned to a vessel.',
+        });
+        return;
+      }
+      if (vesselId && vesselId !== req.user.vesselId) {
+        res.status(403).json({
+          success: false,
+          message: 'You are only authorized to create purchase requests for your assigned vessel.',
+        });
+        return;
+      }
+      targetVesselId = req.user.vesselId;
+    } else {
+      if (!targetVesselId) {
+        res.status(400).json({ success: false, message: 'Vessel is mandatory.' });
+        return;
+      }
     }
+
     if (!department || !department.trim()) {
       res.status(400).json({ success: false, message: 'Department is mandatory.' });
       return;
@@ -210,7 +236,7 @@ export async function createPurchaseRequest(
       return;
     }
 
-    const vessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
+    const vessel = await prisma.vessel.findUnique({ where: { id: targetVesselId } });
     if (!vessel) {
       res.status(404).json({ success: false, message: 'Vessel not found.' });
       return;
@@ -294,7 +320,7 @@ export async function createPurchaseRequest(
       const pr = await tx.purchaseRequest.create({
         data: {
           prNumber,
-          vesselId,
+          vesselId: targetVesselId,
           department: department.trim(),
           priority: priority as PrPriority,
           requiredDate: reqDate,
@@ -577,3 +603,140 @@ export async function rejectPurchaseRequest(
     next(error);
   }
 }
+
+export async function updatePurchaseRequest(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const { department, priority, requiredDate, reason, items, vesselId } = req.body;
+
+    const pr = await prisma.purchaseRequest.findFirst({
+      where: {
+        OR: [{ id }, { prNumber: id }],
+      },
+      include: { items: true },
+    });
+
+    if (!pr) {
+      res.status(404).json({ success: false, message: 'Purchase request not found.' });
+      return;
+    }
+
+    if (req.user?.role === UserRole.REQUESTER && pr.requesterId !== req.user.id) {
+      res.status(403).json({
+        success: false,
+        message: 'You are not authorized to edit this purchase request.',
+      });
+      return;
+    }
+
+    if (pr.status !== PrStatus.DRAFT) {
+      res.status(400).json({
+        success: false,
+        message: `Only DRAFT purchase requests can be edited. Current status is ${pr.status}.`,
+      });
+      return;
+    }
+
+    if (req.user?.role === UserRole.REQUESTER) {
+      if (vesselId && vesselId !== req.user.vesselId) {
+        res.status(403).json({
+          success: false,
+          message: 'You cannot change the purchase request to another vessel.',
+        });
+        return;
+      }
+    }
+
+    const updateData: any = {};
+    if (department && department.trim()) updateData.department = department.trim();
+    if (priority && Object.values(PrPriority).includes(priority)) updateData.priority = priority as PrPriority;
+    if (requiredDate) {
+      const reqDate = new Date(requiredDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (reqDate < today) {
+        res.status(400).json({ success: false, message: 'Required date cannot be in the past.' });
+        return;
+      }
+      updateData.requiredDate = reqDate;
+    }
+    if (reason && reason.trim()) updateData.reason = reason.trim();
+    if (vesselId && req.user?.role === UserRole.ADMIN) {
+      const v = await prisma.vessel.findUnique({ where: { id: vesselId } });
+      if (!v || v.status !== 'ACTIVE') {
+        res.status(400).json({ success: false, message: 'Invalid or inactive vessel selected.' });
+        return;
+      }
+      updateData.vesselId = vesselId;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(items) && items.length > 0) {
+        let calculatedTotal = 0;
+        const validatedItems: any[] = [];
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item.itemName || !item.itemName.trim()) {
+            throw new Error(`Item #${i + 1}: Item name is mandatory.`);
+          }
+          const quantity = Number(item.quantity);
+          const unitPrice = Number(item.estimatedUnitPrice || 0);
+          if (isNaN(quantity) || quantity <= 0) {
+            throw new Error(`Item #${i + 1}: Quantity must be greater than zero.`);
+          }
+          const itemTotal = quantity * unitPrice;
+          calculatedTotal += itemTotal;
+          validatedItems.push({
+            itemName: item.itemName.trim(),
+            description: item.description?.trim() || '',
+            quantity,
+            unit: item.unit?.trim() || 'Pieces',
+            estimatedUnitPrice: unitPrice,
+            estimatedTotal: itemTotal,
+          });
+        }
+        await tx.purchaseRequestItem.deleteMany({ where: { purchaseRequestId: pr.id } });
+        updateData.items = { create: validatedItems };
+        updateData.estimatedTotal = calculatedTotal;
+      }
+
+      const resPr = await tx.purchaseRequest.update({
+        where: { id: pr.id },
+        data: updateData,
+        include: { vessel: true, items: true, requester: true },
+      });
+
+      await logAudit(
+        {
+          userId: req.user!.id,
+          userName: req.user!.name,
+          userRole: req.user!.role,
+          action: 'UPDATE_PURCHASE_REQUEST',
+          entityType: 'PURCHASE_REQUEST',
+          entityId: pr.id,
+          description: `Purchase request ${pr.prNumber} updated by ${req.user!.name}.`,
+        },
+        tx
+      );
+
+      return resPr;
+    });
+
+    res.json({
+      success: true,
+      message: `Purchase request ${pr.prNumber} updated successfully.`,
+      data: { purchaseRequest: updated },
+    });
+  } catch (error: any) {
+    if (error.message && error.message.includes('Item #')) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    next(error);
+  }
+}
+

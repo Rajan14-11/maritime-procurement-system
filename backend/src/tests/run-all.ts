@@ -17,6 +17,7 @@ async function main() {
 
   const workflowTest = path.join(__dirname, 'workflow.test.js');
   const guardsTest = path.join(__dirname, 'adversarial-guards.test.js');
+  const vesselScopedTest = path.join(__dirname, 'vessel-scoped-access.test.js');
 
   const code1 = await runScript(workflowTest);
   if (code1 !== 0) {
@@ -30,8 +31,14 @@ async function main() {
     process.exit(code2);
   }
 
+  const code3 = await runScript(vesselScopedTest);
+  if (code3 !== 0) {
+    console.error(`\n❌ Vessel-scoped access tests failed with code ${code3}`);
+    process.exit(code3);
+  }
+
   console.log('\n===================================================');
-  console.log('🎉 ALL TEST SUITES PASSED CLEANLY (16 WORKFLOW + 24 ADVERSARIAL = 40 TESTS TOTAL)!');
+  console.log('🎉 ALL TEST SUITES PASSED CLEANLY (16 WORKFLOW + 24 ADVERSARIAL + 11 VESSEL-SCOPED = 51 TESTS TOTAL)!');
   console.log('===================================================\n');
 }
 
