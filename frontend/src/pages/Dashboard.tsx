@@ -77,51 +77,194 @@ export const Dashboard: React.FC = () => {
 
   const { kpis, recentPurchaseRequests, pendingApprovals, recentActivity } = data;
 
-  const statCards = [
-    {
-      title: 'Purchase Requests',
-      value: kpis.purchaseRequests,
-      icon: FileText,
-      color: 'text-blue-600 bg-blue-50 border-blue-100',
-      href: '/purchase-requests',
-    },
-    {
-      title: 'Pending Approvals',
-      value: kpis.pendingApprovals,
-      icon: Clock,
-      color: 'text-amber-600 bg-amber-50 border-amber-100',
-      href: '/approvals',
-      alert: kpis.pendingApprovals > 0,
-    },
-    {
-      title: 'Open RFQs',
-      value: kpis.openRfqs,
-      icon: Layers,
-      color: 'text-sky-600 bg-sky-50 border-sky-100',
-      href: '/rfqs',
-    },
-    {
-      title: 'Active POs',
-      value: kpis.activePos,
-      icon: ShoppingCart,
-      color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
-      href: '/purchase-orders',
-    },
-    {
-      title: 'Pending Deliveries',
-      value: kpis.pendingDeliveries,
-      icon: Truck,
-      color: 'text-orange-600 bg-orange-50 border-orange-100',
-      href: '/deliveries',
-    },
-    {
-      title: 'Completed Cycles',
-      value: kpis.completedProcurements,
-      icon: CheckCircle2,
-      color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      href: '/purchase-requests?status=COMPLETED',
-    },
-  ];
+  const getRoleStatCards = () => {
+    switch (user?.role) {
+      case 'PROCUREMENT_OFFICER':
+        return [
+          {
+            title: 'Awaiting RFQs',
+            value: kpis.approvedPrs ?? 0,
+            icon: FileText,
+            color: 'text-blue-600 bg-blue-50 border-blue-100',
+            href: '/purchase-requests?status=APPROVED',
+            alert: (kpis.approvedPrs ?? 0) > 0,
+          },
+          {
+            title: 'Open RFQs',
+            value: kpis.openRfqs,
+            icon: Layers,
+            color: 'text-sky-600 bg-sky-50 border-sky-100',
+            href: '/rfqs',
+            alert: kpis.openRfqs > 0,
+          },
+          {
+            title: 'Active Purchase Orders',
+            value: kpis.activePos,
+            icon: ShoppingCart,
+            color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+            href: '/purchase-orders',
+          },
+          {
+            title: 'Pending Deliveries',
+            value: kpis.pendingDeliveries,
+            icon: Truck,
+            color: 'text-orange-600 bg-orange-50 border-orange-100',
+            href: '/deliveries',
+          },
+          {
+            title: 'Completed Procurements',
+            value: kpis.completedProcurements,
+            icon: CheckCircle2,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/purchase-requests?status=COMPLETED',
+          },
+          {
+            title: 'Committed Spend',
+            value: `₹${(kpis.totalSpend || 0).toLocaleString()}`,
+            icon: DollarSign,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/purchase-orders',
+          },
+        ];
+
+      case 'REQUESTER':
+        return [
+          {
+            title: 'My Vessel Requests',
+            value: kpis.purchaseRequests,
+            icon: FileText,
+            color: 'text-blue-600 bg-blue-50 border-blue-100',
+            href: '/purchase-requests',
+          },
+          {
+            title: 'Pending Review',
+            value: kpis.pendingReviewPrs ?? 0,
+            icon: Clock,
+            color: 'text-amber-600 bg-amber-50 border-amber-100',
+            href: '/purchase-requests?status=PENDING_APPROVAL',
+            alert: (kpis.pendingReviewPrs ?? 0) > 0,
+          },
+          {
+            title: 'Approved Demands',
+            value: kpis.approvedPrs ?? 0,
+            icon: CheckCircle2,
+            color: 'text-sky-600 bg-sky-50 border-sky-100',
+            href: '/purchase-requests?status=APPROVED',
+          },
+          {
+            title: 'Active Orders',
+            value: kpis.activePos,
+            icon: ShoppingCart,
+            color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+            href: '/purchase-requests',
+          },
+          {
+            title: 'Completed Deliveries',
+            value: kpis.completedProcurements,
+            icon: Truck,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/purchase-requests?status=COMPLETED',
+          },
+        ];
+
+      case 'APPROVER':
+        return [
+          {
+            title: 'Pending Approvals',
+            value: kpis.pendingApprovals,
+            icon: Clock,
+            color: 'text-amber-600 bg-amber-50 border-amber-100',
+            href: '/approvals',
+            alert: kpis.pendingApprovals > 0,
+          },
+          {
+            title: 'Fleet Demands',
+            value: kpis.purchaseRequests,
+            icon: FileText,
+            color: 'text-blue-600 bg-blue-50 border-blue-100',
+            href: '/purchase-requests',
+          },
+          {
+            title: 'Open RFQs',
+            value: kpis.openRfqs,
+            icon: Layers,
+            color: 'text-sky-600 bg-sky-50 border-sky-100',
+            href: '/rfqs',
+          },
+          {
+            title: 'Active Purchase Orders',
+            value: kpis.activePos,
+            icon: ShoppingCart,
+            color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+            href: '/purchase-orders',
+          },
+          {
+            title: 'Pending Deliveries',
+            value: kpis.pendingDeliveries,
+            icon: Truck,
+            color: 'text-orange-600 bg-orange-50 border-orange-100',
+            href: '/deliveries',
+          },
+          {
+            title: 'Total Spend',
+            value: `₹${(kpis.totalSpend || 0).toLocaleString()}`,
+            icon: DollarSign,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/purchase-orders',
+          },
+        ];
+
+      case 'ADMIN':
+      default:
+        return [
+          {
+            title: 'Purchase Requests',
+            value: kpis.purchaseRequests,
+            icon: FileText,
+            color: 'text-blue-600 bg-blue-50 border-blue-100',
+            href: '/purchase-requests',
+          },
+          {
+            title: 'Pending Approvals',
+            value: kpis.pendingApprovals,
+            icon: Clock,
+            color: 'text-amber-600 bg-amber-50 border-amber-100',
+            href: '/approvals',
+            alert: kpis.pendingApprovals > 0,
+          },
+          {
+            title: 'Open RFQs',
+            value: kpis.openRfqs,
+            icon: Layers,
+            color: 'text-sky-600 bg-sky-50 border-sky-100',
+            href: '/rfqs',
+          },
+          {
+            title: 'Active POs',
+            value: kpis.activePos,
+            icon: ShoppingCart,
+            color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+            href: '/purchase-orders',
+          },
+          {
+            title: 'Pending Deliveries',
+            value: kpis.pendingDeliveries,
+            icon: Truck,
+            color: 'text-orange-600 bg-orange-50 border-orange-100',
+            href: '/deliveries',
+          },
+          {
+            title: 'Completed Cycles',
+            value: kpis.completedProcurements,
+            icon: CheckCircle2,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/purchase-requests?status=COMPLETED',
+          },
+        ];
+    }
+  };
+
+  const statCards = getRoleStatCards();
 
   return (
     <div className="space-y-6">
@@ -167,7 +310,11 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div
+        className={`grid grid-cols-2 md:grid-cols-3 ${
+          statCards.length === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-6'
+        } gap-4`}
+      >
         {statCards.map((stat) => (
           <Link
             key={stat.title}
@@ -358,12 +505,14 @@ export const Dashboard: React.FC = () => {
             title="Procurement Activity Trail"
             subtitle="Real-time chronological events from database"
             action={
-              <Link
-                to="/audit-logs"
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-              >
-                View full audit
-              </Link>
+              user?.role !== 'REQUESTER' ? (
+                <Link
+                  to="/audit-logs"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  View full audit
+                </Link>
+              ) : undefined
             }
           >
             <div className="flow-root">

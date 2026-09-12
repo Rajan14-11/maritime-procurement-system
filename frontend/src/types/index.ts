@@ -263,6 +263,8 @@ export interface DashboardSummary {
   kpis: {
     purchaseRequests: number;
     pendingApprovals: number;
+    approvedPrs?: number;
+    pendingReviewPrs?: number;
     openRfqs: number;
     activePos: number;
     pendingDeliveries: number;

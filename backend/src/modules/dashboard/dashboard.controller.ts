@@ -24,6 +24,8 @@ export async function getDashboardSummary(
       activePos,
       pendingDeliveries,
       completedProcurements,
+      approvedPrs,
+      pendingReviewPrs,
       totalSpendResult,
     ] = await Promise.all([
       // Total PRs
@@ -80,6 +82,22 @@ export async function getDashboardSummary(
       prisma.purchaseRequest.count({
         where: {
           status: PrStatus.COMPLETED,
+          ...prScope,
+        },
+      }),
+
+      // Approved PRs awaiting RFQ sourcing (PR status = APPROVED)
+      prisma.purchaseRequest.count({
+        where: {
+          status: PrStatus.APPROVED,
+          ...prScope,
+        },
+      }),
+
+      // PRs currently in review / pending approval
+      prisma.purchaseRequest.count({
+        where: {
+          status: PrStatus.PENDING_APPROVAL,
           ...prScope,
         },
       }),
@@ -153,7 +171,12 @@ export async function getDashboardSummary(
       data: {
         kpis: {
           purchaseRequests: totalPrs,
-          pendingApprovals: pendingPrApprovals + pendingPoApprovals,
+          pendingApprovals:
+            req.user?.role === UserRole.APPROVER || req.user?.role === UserRole.ADMIN
+              ? pendingPrApprovals + pendingPoApprovals
+              : 0,
+          approvedPrs,
+          pendingReviewPrs,
           openRfqs,
           activePos,
           pendingDeliveries,
