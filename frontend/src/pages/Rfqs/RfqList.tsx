@@ -130,6 +130,13 @@ export const RfqList: React.FC = () => {
       setFormError('Quotation deadline date is mandatory.');
       return;
     }
+    const deadlineDate = new Date(deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (isNaN(deadlineDate.getTime()) || deadlineDate < today) {
+      setFormError('Quotation deadline cannot be in the past.');
+      return;
+    }
 
     try {
       setCreating(true);
@@ -351,6 +358,7 @@ export const RfqList: React.FC = () => {
             <input
               type="date"
               required
+              min={new Date().toISOString().slice(0, 10)}
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
               className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600 font-mono"

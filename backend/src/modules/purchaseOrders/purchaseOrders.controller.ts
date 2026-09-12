@@ -245,9 +245,22 @@ export async function createPurchaseOrder(
     const taxAmount = Math.round(((subtotal * rate) / 100) * 100) / 100;
     const total = Math.round((subtotal + taxAmount) * 100) / 100;
 
-    const expectedDelivery = deliveryDate
-      ? new Date(deliveryDate)
-      : new Date(Date.now() + (selectedQuote.deliveryDays || 5) * 24 * 60 * 60 * 1000);
+    let expectedDelivery: Date;
+    if (deliveryDate) {
+      const parsed = new Date(deliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(parsed.getTime()) || parsed < today) {
+        res.status(400).json({
+          success: false,
+          message: 'Delivery date cannot be in the past.',
+        });
+        return;
+      }
+      expectedDelivery = parsed;
+    } else {
+      expectedDelivery = new Date(Date.now() + (selectedQuote.deliveryDays || 5) * 24 * 60 * 60 * 1000);
+    }
 
     // Calculate PO items directly from the selected vendor's quotation, NOT the PR estimates
     const quoteItems: any[] = (selectedQuote as any).items || [];

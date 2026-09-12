@@ -154,6 +154,16 @@ export const PurchaseOrderDetail: React.FC = () => {
       }
     }
 
+    if (deliveryDate) {
+      const parsedDate = new Date(deliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(parsedDate.getTime()) || parsedDate < today) {
+        setDeliveryError('Receipt / delivery date cannot be in the past.');
+        return;
+      }
+    }
+
     try {
       setSubmittingDelivery(true);
       await deliveriesApi.recordReceipt(id, {
@@ -656,6 +666,7 @@ export const PurchaseOrderDetail: React.FC = () => {
               <input
                 type="date"
                 required
+                min={new Date().toISOString().slice(0, 10)}
                 value={deliveryDate}
                 onChange={(e) => setDeliveryDate(e.target.value)}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600 font-mono"

@@ -93,7 +93,20 @@ export async function recordGoodsReceipt(
     const count = await prisma.goodsReceipt.count();
     const entropy = Math.floor(100 + Math.random() * 900);
     const receiptNumber = `GR-${1001 + count}-${entropy}`;
-    const receiptDate = deliveryDate ? new Date(deliveryDate) : new Date();
+    let receiptDate = new Date();
+    if (deliveryDate) {
+      const parsed = new Date(deliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(parsed.getTime()) || parsed < today) {
+        res.status(400).json({
+          success: false,
+          message: 'Delivery / receipt date cannot be in the past.',
+        });
+        return;
+      }
+      receiptDate = parsed;
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // Concurrency & Race Protection: Pessimistic row-level lock on the PO row in PostgreSQL

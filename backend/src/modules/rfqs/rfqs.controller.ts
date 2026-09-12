@@ -130,7 +130,7 @@ export async function createRfq(
     const deadlineDate = new Date(deadline);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (deadlineDate < today) {
+    if (isNaN(deadlineDate.getTime()) || deadlineDate < today) {
       res.status(400).json({
         success: false,
         message: 'Quotation deadline cannot be in the past.',
@@ -348,13 +348,28 @@ export async function addQuotation(
       return;
     }
 
+    let finalQuotationDate = new Date();
+    if (quotationDate) {
+      const parsedDate = new Date(quotationDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(parsedDate.getTime()) || parsedDate < today) {
+        res.status(400).json({
+          success: false,
+          message: 'Quotation date cannot be in the past.',
+        });
+        return;
+      }
+      finalQuotationDate = parsedDate;
+    }
+
     const quotation = await prisma.$transaction(async (tx) => {
       const q = await tx.quotation.create({
         data: {
           rfqId: rfq.id,
           vendorId,
           quotationNumber: quotationNumber.trim(),
-          quotationDate: quotationDate ? new Date(quotationDate) : new Date(),
+          quotationDate: finalQuotationDate,
           totalPrice: price,
           deliveryDays: days,
           paymentTerms: paymentTerms?.trim() || vendor.paymentTerms,

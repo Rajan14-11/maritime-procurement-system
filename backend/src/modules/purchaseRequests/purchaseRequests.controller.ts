@@ -223,7 +223,7 @@ export async function createPurchaseRequest(
     const reqDate = new Date(requiredDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (reqDate < today) {
+    if (isNaN(reqDate.getTime()) || reqDate < today) {
       res.status(400).json({
         success: false,
         message: 'Required date cannot be in the past.',
@@ -658,7 +658,7 @@ export async function updatePurchaseRequest(
       const reqDate = new Date(requiredDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (reqDate < today) {
+      if (isNaN(reqDate.getTime()) || reqDate < today) {
         res.status(400).json({ success: false, message: 'Required date cannot be in the past.' });
         return;
       }

@@ -153,7 +153,7 @@ export const CreatePurchaseRequest: React.FC = () => {
     const reqDate = new Date(requiredDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (reqDate < today) {
+    if (isNaN(reqDate.getTime()) || reqDate < today) {
       setError('Required date cannot be in the past.');
       return;
     }
@@ -343,6 +343,7 @@ export const CreatePurchaseRequest: React.FC = () => {
               </label>
               <input
                 type="date"
+                min={new Date().toISOString().slice(0, 10)}
                 value={requiredDate}
                 onChange={(e) => setRequiredDate(e.target.value)}
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600 focus:border-blue-600 font-mono"

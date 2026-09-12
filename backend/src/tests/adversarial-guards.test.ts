@@ -513,6 +513,20 @@ async function runAdversarialTests() {
       body: { quotationId: q2Res.data.data.quotation.id },
     });
 
+    const pastPoRes = await api('/api/purchase-orders', {
+      method: 'POST',
+      token: officerToken,
+      body: {
+        purchaseRequestId: pr2Id,
+        deliveryDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+      },
+    });
+    assert(
+      pastPoRes.status === 400 && pastPoRes.data?.message?.includes('Delivery date cannot be in the past'),
+      '13b. Past deliveryDate on PO creation is strictly rejected (HTTP 400)',
+      pastPoRes.data?.message
+    );
+
     const po2Res = await api('/api/purchase-orders', {
       method: 'POST',
       token: officerToken,
@@ -560,6 +574,57 @@ async function runAdversarialTests() {
 
     if (sim1.data.data?.goodsReceipt?.id) createdGrIds.push(sim1.data.data.goodsReceipt.id);
     if (sim2.data.data?.goodsReceipt?.id) createdGrIds.push(sim2.data.data.goodsReceipt.id);
+
+    console.log('\n--- Category 6: Future-Only Date Validation Guards ---');
+    // Test 15: Past requiredDate on PR creation rejected
+    const pastPrRes = await api('/api/purchase-requests', {
+      method: 'POST',
+      token: requesterToken,
+      body: {
+        vesselId: vessel.id,
+        department: 'Engine',
+        priority: 'HIGH',
+        requiredDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+        reason: 'Backdated PR test',
+        items: [{ itemName: 'Filter element', quantity: 2, unit: 'Pieces', estimatedUnitPrice: 100 }],
+      },
+    });
+    assert(
+      pastPrRes.status === 400 && pastPrRes.data?.message?.includes('Required date cannot be in the past'),
+      '15. Past requiredDate on PR creation is strictly rejected (HTTP 400)',
+      pastPrRes.data?.message
+    );
+
+    // Test 16: Past deadline on RFQ creation rejected
+    const pastRfqRes = await api('/api/rfqs', {
+      method: 'POST',
+      token: officerToken,
+      body: {
+        purchaseRequestId: pr1Id,
+        vendorIds: [vendors[0].id],
+        deadline: new Date(Date.now() - 5 * 86400000).toISOString(),
+      },
+    });
+    assert(
+      pastRfqRes.status === 400 && pastRfqRes.data?.message?.includes('Quotation deadline cannot be in the past'),
+      '16. Past deadline on RFQ creation is strictly rejected (HTTP 400)',
+      pastRfqRes.data?.message
+    );
+
+    // Test 17: Past deliveryDate on Goods Receipt rejected
+    const pastGrRes = await api(`/api/deliveries/${po2.id}/receipts`, {
+      method: 'POST',
+      token: officerToken,
+      body: {
+        deliveryDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+        items: [{ poItemId: po2Item.id, quantityReceived: 1 }],
+      },
+    });
+    assert(
+      pastGrRes.status === 400 && pastGrRes.data?.message?.includes('Delivery / receipt date cannot be in the past'),
+      '17. Past deliveryDate on Goods Receipt is strictly rejected (HTTP 400)',
+      pastGrRes.data?.message
+    );
 
     // Clean up test records
     if (createdGrIds.length > 0) {
