@@ -310,20 +310,20 @@ async function runAdversarialTests() {
     const expectedTotal = 6600;
 
     assert(
-      poLine.unitPrice === expectedQuotedUnitPrice,
+      Number(poLine.unitPrice) === expectedQuotedUnitPrice,
       `8a. PO line item displays vendor's quoted unit price (₹${poLine.unitPrice} vs quoted ₹${expectedQuotedUnitPrice}, NOT PR estimate ₹1000)`,
       `Expected ${expectedQuotedUnitPrice}, got ${poLine.unitPrice}`
     );
     assert(
-      poLine.total === expectedSubtotal,
+      Number(poLine.total) === expectedSubtotal,
       `8b. PO line total equals quantity x quoted unit price (₹${poLine.total})`
     );
     assert(
-      createdPo.subtotal === expectedSubtotal,
+      Number(createdPo.subtotal) === expectedSubtotal,
       `8c. PO subtotal equals sum of line totals (₹${createdPo.subtotal})`
     );
     assert(
-      createdPo.total === expectedTotal,
+      Number(createdPo.total) === expectedTotal,
       `8d. PO total equals subtotal + tax (₹${createdPo.total} = ₹${expectedSubtotal} + ₹${expectedTax})`
     );
 

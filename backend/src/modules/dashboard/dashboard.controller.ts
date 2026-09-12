@@ -33,20 +33,20 @@ export async function getDashboardSummary(
       isRequester
         ? Promise.resolve(0)
         : prisma.purchaseRequest.count({
-            where: { status: PrStatus.PENDING_APPROVAL as string },
+            where: { status: PrStatus.PENDING_APPROVAL },
           }),
 
       // Pending PO approvals (requesters have 0 actionable approvals)
       isRequester
         ? Promise.resolve(0)
         : prisma.purchaseOrder.count({
-            where: { status: PoStatus.PENDING_APPROVAL as string },
+            where: { status: PoStatus.PENDING_APPROVAL },
           }),
 
       // Open RFQs (scoped to requester's requests if requester)
       prisma.rfq.count({
         where: {
-          status: RfqStatus.OPEN as string,
+          status: RfqStatus.OPEN,
           ...rfqScope,
         },
       }),
@@ -56,10 +56,10 @@ export async function getDashboardSummary(
         where: {
           status: {
             in: [
-              PoStatus.PENDING_APPROVAL as string,
-              PoStatus.APPROVED as string,
-              PoStatus.ORDERED as string,
-              PoStatus.PARTIALLY_RECEIVED as string,
+              PoStatus.PENDING_APPROVAL,
+              PoStatus.APPROVED,
+              PoStatus.ORDERED,
+              PoStatus.PARTIALLY_RECEIVED,
             ],
           },
           ...poScope,
@@ -70,7 +70,7 @@ export async function getDashboardSummary(
       prisma.purchaseOrder.count({
         where: {
           status: {
-            in: [PoStatus.ORDERED as string, PoStatus.PARTIALLY_RECEIVED as string],
+            in: [PoStatus.ORDERED, PoStatus.PARTIALLY_RECEIVED],
           },
           ...poScope,
         },
@@ -79,7 +79,7 @@ export async function getDashboardSummary(
       // Completed Procurements
       prisma.purchaseRequest.count({
         where: {
-          status: PrStatus.COMPLETED as string,
+          status: PrStatus.COMPLETED,
           ...prScope,
         },
       }),
@@ -90,10 +90,10 @@ export async function getDashboardSummary(
         where: {
           status: {
             in: [
-              PoStatus.ORDERED as string,
-              PoStatus.PARTIALLY_RECEIVED as string,
-              PoStatus.RECEIVED as string,
-              PoStatus.COMPLETED as string,
+              PoStatus.ORDERED,
+              PoStatus.PARTIALLY_RECEIVED,
+              PoStatus.RECEIVED,
+              PoStatus.COMPLETED,
             ],
           },
           ...poScope,
@@ -117,7 +117,7 @@ export async function getDashboardSummary(
     const pendingPrs = isRequester
       ? []
       : await prisma.purchaseRequest.findMany({
-          where: { status: PrStatus.PENDING_APPROVAL as string },
+          where: { status: PrStatus.PENDING_APPROVAL },
           take: 5,
           orderBy: { createdAt: 'desc' },
           include: {
@@ -130,7 +130,7 @@ export async function getDashboardSummary(
     const pendingPos = isRequester
       ? []
       : await prisma.purchaseOrder.findMany({
-          where: { status: PoStatus.PENDING_APPROVAL as string },
+          where: { status: PoStatus.PENDING_APPROVAL },
           take: 5,
           orderBy: { createdAt: 'desc' },
           include: {
@@ -158,7 +158,7 @@ export async function getDashboardSummary(
           activePos,
           pendingDeliveries,
           completedProcurements,
-          totalSpend: totalSpendResult._sum.total || 0,
+          totalSpend: Number(totalSpendResult._sum?.total || 0),
         },
         recentPurchaseRequests: recentPrs,
         pendingApprovals: {

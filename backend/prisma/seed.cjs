@@ -13,6 +13,7 @@ async function main() {
   await prisma.goodsReceipt.deleteMany();
   await prisma.purchaseOrderItem.deleteMany();
   await prisma.purchaseOrder.deleteMany();
+  await prisma.quotationItem.deleteMany();
   await prisma.quotation.deleteMany();
   await prisma.rfqVendor.deleteMany();
   await prisma.rfq.deleteMany();

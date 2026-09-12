@@ -131,7 +131,7 @@ export async function createUser(
         name: name.trim(),
         email: email.toLowerCase().trim(),
         passwordHash,
-        role: role as string,
+        role: role as UserRole,
         department: department?.trim() || null,
         status: UserStatus.ACTIVE,
       },

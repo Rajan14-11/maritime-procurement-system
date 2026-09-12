@@ -215,7 +215,7 @@ export async function createPurchaseOrder(
           { quotationId: selectedQuote.id },
           { purchaseRequestId: pr.id },
         ],
-        status: { not: PoStatus.REJECTED as string },
+        status: { not: PoStatus.REJECTED },
       },
     });
 
@@ -266,8 +266,8 @@ export async function createPurchaseOrder(
         unitPrice = prItem.quantity > 0 ? (subtotal / prItem.quantity) : 0;
         lineTotal = subtotal;
       } else {
-        const prTotal = pr.items.reduce((s, i) => s + i.estimatedTotal, 0);
-        const weight = prTotal > 0 ? (prItem.estimatedTotal / prTotal) : (1 / pr.items.length);
+        const prTotal = pr.items.reduce((s, i) => s + Number(i.estimatedTotal), 0);
+        const weight = prTotal > 0 ? (Number(prItem.estimatedTotal) / prTotal) : (1 / pr.items.length);
         lineTotal = Math.round(subtotal * weight * 100) / 100;
         unitPrice = prItem.quantity > 0 ? Math.round((lineTotal / prItem.quantity) * 100) / 100 : 0;
       }
@@ -309,7 +309,7 @@ export async function createPurchaseOrder(
           total,
           deliveryDate: expectedDelivery,
           paymentTerms: paymentTerms?.trim() || selectedQuote.paymentTerms,
-          status: PoStatus.PENDING_APPROVAL as string,
+          status: PoStatus.PENDING_APPROVAL,
           createdById: req.user!.id,
           items: {
             create: poItemsData,
@@ -324,7 +324,7 @@ export async function createPurchaseOrder(
 
       await tx.purchaseRequest.update({
         where: { id: pr.id },
-        data: { status: PrStatus.PO_CREATED as string },
+        data: { status: PrStatus.PO_CREATED },
       });
 
       await logAudit(
@@ -394,7 +394,7 @@ export async function approvePurchaseOrder(
 
       const updatedPo = await tx.purchaseOrder.update({
         where: { id },
-        data: { status: PoStatus.ORDERED as string },
+        data: { status: PoStatus.ORDERED },
         include: { vendor: true, vessel: true, items: true },
       });
 
@@ -474,7 +474,7 @@ export async function rejectPurchaseOrder(
       const updatedPo = await tx.purchaseOrder.update({
         where: { id },
         data: {
-          status: PoStatus.REJECTED as string,
+          status: PoStatus.REJECTED,
           rejectionReason: reason.trim(),
         },
       });

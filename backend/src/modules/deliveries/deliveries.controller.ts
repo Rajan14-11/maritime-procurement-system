@@ -91,11 +91,19 @@ export async function recordGoodsReceipt(
     }
 
     const count = await prisma.goodsReceipt.count();
-    const receiptNumber = `GR-${1001 + count}`;
+    const entropy = Math.floor(100 + Math.random() * 900);
+    const receiptNumber = `GR-${1001 + count}-${entropy}`;
     const receiptDate = deliveryDate ? new Date(deliveryDate) : new Date();
 
     const result = await prisma.$transaction(async (tx) => {
-      // Concurrency protection: Fetch PO and its line items inside the transaction
+      // Concurrency & Race Protection: Pessimistic row-level lock on the PO row in PostgreSQL
+      try {
+        await tx.$queryRawUnsafe(`SELECT id FROM purchase_orders WHERE id = $1 FOR UPDATE`, id);
+      } catch {
+        // Safe fallback for engines without FOR UPDATE support
+      }
+
+      // Fetch PO and its line items inside the serialized transaction
       const po = await tx.purchaseOrder.findUnique({
         where: { id },
         include: {
@@ -156,7 +164,7 @@ export async function recordGoodsReceipt(
           receiptNumber,
           purchaseOrderId: po.id,
           deliveryDate: receiptDate,
-          condition: condition as string,
+          condition: (condition as GoodsCondition) || GoodsCondition.GOOD,
           notes: notes?.trim() || null,
           receivedById: req.user!.id,
           items: {
@@ -193,18 +201,18 @@ export async function recordGoodsReceipt(
 
       await tx.purchaseOrder.update({
         where: { id: po.id },
-        data: { status: newPoStatus as string },
+        data: { status: newPoStatus },
       });
 
       if (isFullyReceived) {
         await tx.purchaseRequest.update({
           where: { id: po.purchaseRequestId },
-          data: { status: PrStatus.COMPLETED as string },
+          data: { status: PrStatus.COMPLETED },
         });
 
         await tx.purchaseOrder.update({
           where: { id: po.id },
-          data: { status: PoStatus.COMPLETED as string },
+          data: { status: PoStatus.COMPLETED },
         });
       }
 

@@ -144,7 +144,7 @@ async function runTests() {
       },
     });
 
-    assert(quote1.totalPrice === 82000 && quote2.totalPrice === 91000, 'Recorded quotations from both invited vendors');
+    assert(Number(quote1.totalPrice) === 82000 && Number(quote2.totalPrice) === 91000, 'Recorded quotations from both invited vendors');
 
     // Select winner (Quote 2 - faster delivery)
     await prisma.quotation.update({

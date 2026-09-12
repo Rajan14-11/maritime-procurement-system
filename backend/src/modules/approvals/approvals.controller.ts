@@ -9,7 +9,7 @@ export async function getPendingApprovals(
 ): Promise<void> {
   try {
     const pendingRequests = await prisma.purchaseRequest.findMany({
-      where: { status: PrStatus.PENDING_APPROVAL as string },
+      where: { status: PrStatus.PENDING_APPROVAL },
       include: {
         vessel: true,
         requester: { select: { id: true, name: true, email: true, department: true } },
@@ -19,7 +19,7 @@ export async function getPendingApprovals(
     });
 
     const pendingOrders = await prisma.purchaseOrder.findMany({
-      where: { status: PoStatus.PENDING_APPROVAL as string },
+      where: { status: PoStatus.PENDING_APPROVAL },
       include: {
         vendor: true,
         vessel: true,

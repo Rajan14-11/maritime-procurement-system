@@ -296,11 +296,11 @@ export async function createPurchaseRequest(
           prNumber,
           vesselId,
           department: department.trim(),
-          priority: priority as string,
+          priority: priority as PrPriority,
           requiredDate: reqDate,
           estimatedTotal: calculatedTotal,
           reason: reason.trim(),
-          status: initialStatus as string,
+          status: initialStatus,
           requesterId: req.user!.id,
           items: {
             create: validatedItems,
@@ -392,7 +392,7 @@ export async function submitPurchaseRequest(
     const updated = await prisma.$transaction(async (tx) => {
       const updatedPr = await tx.purchaseRequest.update({
         where: { id },
-        data: { status: PrStatus.PENDING_APPROVAL as string },
+        data: { status: PrStatus.PENDING_APPROVAL },
       });
 
       await logAudit(
@@ -469,7 +469,7 @@ export async function approvePurchaseRequest(
 
       const updatedPr = await tx.purchaseRequest.update({
         where: { id },
-        data: { status: PrStatus.APPROVED as string },
+        data: { status: PrStatus.APPROVED },
       });
 
       await logAudit(
@@ -547,7 +547,7 @@ export async function rejectPurchaseRequest(
       const updatedPr = await tx.purchaseRequest.update({
         where: { id },
         data: {
-          status: PrStatus.REJECTED as string,
+          status: PrStatus.REJECTED,
           rejectionReason: reason.trim(),
         },
       });

@@ -211,7 +211,7 @@ export async function createRfq(
           rfqNumber,
           purchaseRequestId: pr.id,
           deadline: deadlineDate,
-          status: RfqStatus.OPEN as string,
+          status: RfqStatus.OPEN,
           rfqVendors: {
             create: uniqueVendorIds.map((vId) => ({ vendorId: vId })),
           },
@@ -224,7 +224,7 @@ export async function createRfq(
 
       await tx.purchaseRequest.update({
         where: { id: pr.id },
-        data: { status: PrStatus.RFQ_CREATED as string },
+        data: { status: PrStatus.RFQ_CREATED },
       });
 
       const vendorNames = vendors.map((v) => v.name).join(', ');
@@ -359,7 +359,7 @@ export async function addQuotation(
           deliveryDays: days,
           paymentTerms: paymentTerms?.trim() || vendor.paymentTerms,
           notes: notes?.trim() || null,
-          status: QuotationStatus.RECEIVED as string,
+          status: QuotationStatus.RECEIVED,
         },
         include: { vendor: true },
       });
@@ -397,12 +397,12 @@ export async function addQuotation(
           },
         });
       } else if (prItems.length > 1) {
-        const prTotal = prItems.reduce((s, i) => s + i.estimatedTotal, 0);
+        const prTotal = prItems.reduce((s, i) => s + Number(i.estimatedTotal), 0);
         let allocatedSum = 0;
         for (let idx = 0; idx < prItems.length; idx++) {
           const prItem = prItems[idx];
           const isLast = idx === prItems.length - 1;
-          const weight = prTotal > 0 ? (prItem.estimatedTotal / prTotal) : (1 / prItems.length);
+          const weight = prTotal > 0 ? (Number(prItem.estimatedTotal) / prTotal) : (1 / prItems.length);
           const lineTotal = isLast
             ? Math.round((price - allocatedSum) * 100) / 100
             : Math.round(price * weight * 100) / 100;
@@ -527,7 +527,7 @@ export async function selectQuotation(
       const selectedQuote = await tx.quotation.update({
         where: { id: quotationId },
         data: {
-          status: QuotationStatus.SELECTED as string,
+          status: QuotationStatus.SELECTED,
           selectionReason: selectionReason?.trim() || null,
         },
         include: { vendor: true, items: true },
@@ -538,17 +538,17 @@ export async function selectQuotation(
           rfqId: rfq.id,
           id: { not: quotationId },
         },
-        data: { status: QuotationStatus.REJECTED as string },
+        data: { status: QuotationStatus.REJECTED },
       });
 
       await tx.rfq.update({
         where: { id: rfq.id },
-        data: { status: RfqStatus.CLOSED as string },
+        data: { status: RfqStatus.CLOSED },
       });
 
       await tx.purchaseRequest.update({
         where: { id: rfq.purchaseRequestId },
-        data: { status: PrStatus.VENDOR_SELECTED as string },
+        data: { status: PrStatus.VENDOR_SELECTED },
       });
 
       await logAudit(
