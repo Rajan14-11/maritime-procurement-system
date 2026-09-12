@@ -136,13 +136,33 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            to="/purchase-requests/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Create Purchase Request</span>
-          </Link>
+          {(user?.role === 'REQUESTER' || user?.role === 'ADMIN') && (
+            <Link
+              to="/purchase-requests/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Create Purchase Request</span>
+            </Link>
+          )}
+          {user?.role === 'PROCUREMENT_OFFICER' && (
+            <Link
+              to="/rfqs"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Manage RFQs</span>
+            </Link>
+          )}
+          {user?.role === 'APPROVER' && (
+            <Link
+              to="/approvals"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Approvals Queue</span>
+            </Link>
+          )}
         </div>
       </div>
 

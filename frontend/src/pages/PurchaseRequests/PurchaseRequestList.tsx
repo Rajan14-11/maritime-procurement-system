@@ -201,13 +201,15 @@ export const PurchaseRequestList: React.FC = () => {
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               There are no purchase requests matching your criteria. Create a new demand to initiate the lifecycle.
             </p>
-            <Link
-              to="/purchase-requests/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create First Request</span>
-            </Link>
+            {canCreatePr && (
+              <Link
+                to="/purchase-requests/new"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create First Request</span>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto -mx-6 -my-6">
