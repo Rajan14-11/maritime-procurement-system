@@ -291,6 +291,7 @@ async function runTests() {
     await prisma.goodsReceipt.deleteMany({ where: { id: { in: [gr1.id, gr2.id] } } });
     await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: testPo.id } });
     await prisma.purchaseOrder.deleteMany({ where: { id: testPo.id } });
+    await prisma.quotationItem.deleteMany({ where: { quotation: { rfqId: testRfq.id } } });
     await prisma.quotation.deleteMany({ where: { rfqId: testRfq.id } });
     await prisma.rfqVendor.deleteMany({ where: { rfqId: testRfq.id } });
     await prisma.rfq.deleteMany({ where: { id: testRfq.id } });

@@ -2,10 +2,11 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../../config/prisma.js';
+import config from '../../config/env.js';
 import { AuthenticatedRequest } from '../../types/index.js';
 import { logAudit } from '../../utils/audit.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secure-maritime-jwt-secret-token-key-2026';
+const JWT_SECRET = config.jwtSecret;
 
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

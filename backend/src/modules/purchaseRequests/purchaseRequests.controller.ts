@@ -381,6 +381,14 @@ export async function submitPurchaseRequest(
       return;
     }
 
+    if (req.user?.role !== UserRole.ADMIN && pr.requesterId !== req.user?.id) {
+      res.status(403).json({
+        success: false,
+        message: 'You are not authorized to submit this purchase request.',
+      });
+      return;
+    }
+
     const updated = await prisma.$transaction(async (tx) => {
       const updatedPr = await tx.purchaseRequest.update({
         where: { id },

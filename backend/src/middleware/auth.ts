@@ -2,8 +2,9 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthenticatedRequest, AuthUser, UserRole } from '../types/index.js';
 import prisma from '../config/prisma.js';
+import config from '../config/env.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secure-maritime-jwt-secret-token-key-2026';
+const JWT_SECRET = config.jwtSecret;
 
 export async function authenticateToken(
   req: AuthenticatedRequest,

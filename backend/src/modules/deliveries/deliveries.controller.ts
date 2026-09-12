@@ -79,67 +79,15 @@ export async function recordGoodsReceipt(
       return;
     }
 
-    const po = await prisma.purchaseOrder.findUnique({
-      where: { id },
-      include: {
-        items: true,
-        vendor: true,
-        vessel: true,
-        purchaseRequest: true,
-      },
-    });
-
-    if (!po) {
-      res.status(404).json({ success: false, message: 'Purchase order not found.' });
-      return;
-    }
-
-    if (po.status !== PoStatus.ORDERED && po.status !== PoStatus.PARTIALLY_RECEIVED) {
-      res.status(400).json({
-        success: false,
-        message: `Goods receipt can only be recorded for an ORDERED or PARTIALLY_RECEIVED PO. Current status: ${po.status}.`,
-      });
-      return;
-    }
-
-    const validatedReceiptItems: { poItemId: string; quantityReceived: number; newTotalReceived: number }[] = [];
-
     for (const itemInput of items) {
-      const { poItemId, quantityReceived } = itemInput;
-      const poItem = po.items.find((i: any) => i.id === poItemId);
-
-      if (!poItem) {
-        res.status(400).json({
-          success: false,
-          message: `PO Item ${poItemId} does not exist in Purchase Order ${po.poNumber}.`,
-        });
-        return;
-      }
-
-      const qty = Number(quantityReceived);
+      const qty = Number(itemInput.quantityReceived);
       if (isNaN(qty) || qty <= 0) {
         res.status(400).json({
           success: false,
-          message: `Received quantity for item "${poItem.itemName}" must be greater than zero.`,
+          message: 'Received quantity must be greater than zero for all items.',
         });
         return;
       }
-
-      const newTotalReceived = poItem.receivedQuantity + qty;
-
-      if (newTotalReceived > poItem.quantity) {
-        res.status(400).json({
-          success: false,
-          message: `Over-delivery not allowed: Attempting to receive ${qty} unit(s) for "${poItem.itemName}", but only ${poItem.quantity - poItem.receivedQuantity} unit(s) remaining (Ordered: ${poItem.quantity}, Already Received: ${poItem.receivedQuantity}).`,
-        });
-        return;
-      }
-
-      validatedReceiptItems.push({
-        poItemId,
-        quantityReceived: qty,
-        newTotalReceived,
-      });
     }
 
     const count = await prisma.goodsReceipt.count();
@@ -147,6 +95,62 @@ export async function recordGoodsReceipt(
     const receiptDate = deliveryDate ? new Date(deliveryDate) : new Date();
 
     const result = await prisma.$transaction(async (tx) => {
+      // Concurrency protection: Fetch PO and its line items inside the transaction
+      const po = await tx.purchaseOrder.findUnique({
+        where: { id },
+        include: {
+          items: true,
+          vendor: true,
+          vessel: true,
+          purchaseRequest: true,
+        },
+      });
+
+      if (!po) {
+        const err: any = new Error('Purchase order not found.');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (po.status !== PoStatus.ORDERED && po.status !== PoStatus.PARTIALLY_RECEIVED) {
+        const err: any = new Error(
+          `Goods receipt can only be recorded for an ORDERED or PARTIALLY_RECEIVED PO. Current status: ${po.status}.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const validatedReceiptItems: { poItemId: string; quantityReceived: number }[] = [];
+
+      for (const itemInput of items) {
+        const { poItemId, quantityReceived } = itemInput;
+        const poItem = po.items.find((i: any) => i.id === poItemId);
+
+        if (!poItem) {
+          const err: any = new Error(
+            `PO Item ${poItemId} does not exist in Purchase Order ${po.poNumber}.`
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        const qty = Number(quantityReceived);
+        const newTotalReceived = poItem.receivedQuantity + qty;
+
+        if (newTotalReceived > poItem.quantity) {
+          const err: any = new Error(
+            `Over-delivery not allowed: Attempting to receive ${qty} unit(s) for "${poItem.itemName}", but only ${poItem.quantity - poItem.receivedQuantity} unit(s) remaining (Ordered: ${poItem.quantity}, Already Received: ${poItem.receivedQuantity}).`
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+
+        validatedReceiptItems.push({
+          poItemId,
+          quantityReceived: qty,
+        });
+      }
+
       const gr = await tx.goodsReceipt.create({
         data: {
           receiptNumber,
@@ -171,7 +175,7 @@ export async function recordGoodsReceipt(
       for (const v of validatedReceiptItems) {
         await tx.purchaseOrderItem.update({
           where: { id: v.poItemId },
-          data: { receivedQuantity: v.newTotalReceived },
+          data: { receivedQuantity: { increment: v.quantityReceived } },
         });
       }
 
@@ -248,7 +252,11 @@ export async function recordGoodsReceipt(
         completed: result.isFullyReceived,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.statusCode) {
+      res.status(error.statusCode).json({ success: false, message: error.message });
+      return;
+    }
     next(error);
   }
 }

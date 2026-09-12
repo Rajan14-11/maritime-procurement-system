@@ -171,7 +171,7 @@ export async function createPurchaseOrder(
           include: {
             quotations: {
               where: { status: QuotationStatus.SELECTED },
-              include: { vendor: true },
+              include: { vendor: true, items: true },
             },
           },
         },
@@ -208,6 +208,25 @@ export async function createPurchaseOrder(
       return;
     }
 
+    // Guard: Prevent duplicate PO generation for the same quotation or PR
+    const existingPo = await prisma.purchaseOrder.findFirst({
+      where: {
+        OR: [
+          { quotationId: selectedQuote.id },
+          { purchaseRequestId: pr.id },
+        ],
+        status: { not: PoStatus.REJECTED as string },
+      },
+    });
+
+    if (existingPo) {
+      res.status(409).json({
+        success: false,
+        message: `A purchase order (${existingPo.poNumber}) has already been generated for this quotation / purchase request.`,
+      });
+      return;
+    }
+
     const lastPo = await prisma.purchaseOrder.findFirst({
       orderBy: { createdAt: 'desc' },
       select: { poNumber: true },
@@ -221,14 +240,59 @@ export async function createPurchaseOrder(
     }
     const poNumber = `PO-${nextPoNum}`;
 
-    const subtotal = selectedQuote.totalPrice;
+    const subtotal = Math.round(Number(selectedQuote.totalPrice) * 100) / 100;
     const rate = Number(taxRate) || 0;
-    const taxAmount = (subtotal * rate) / 100;
-    const total = subtotal + taxAmount;
+    const taxAmount = Math.round(((subtotal * rate) / 100) * 100) / 100;
+    const total = Math.round((subtotal + taxAmount) * 100) / 100;
 
     const expectedDelivery = deliveryDate
       ? new Date(deliveryDate)
       : new Date(Date.now() + (selectedQuote.deliveryDays || 5) * 24 * 60 * 60 * 1000);
+
+    // Calculate PO items directly from the selected vendor's quotation, NOT the PR estimates
+    const quoteItems: any[] = (selectedQuote as any).items || [];
+    const poItemsData = pr.items.map((prItem) => {
+      const matchedQuoteItem = quoteItems.find(
+        (qi: any) => qi.purchaseRequestItemId === prItem.id || qi.itemName === prItem.itemName
+      );
+
+      let unitPrice: number;
+      let lineTotal: number;
+
+      if (matchedQuoteItem) {
+        unitPrice = Number(matchedQuoteItem.unitPrice);
+        lineTotal = Number(matchedQuoteItem.total);
+      } else if (pr.items.length === 1) {
+        unitPrice = prItem.quantity > 0 ? (subtotal / prItem.quantity) : 0;
+        lineTotal = subtotal;
+      } else {
+        const prTotal = pr.items.reduce((s, i) => s + i.estimatedTotal, 0);
+        const weight = prTotal > 0 ? (prItem.estimatedTotal / prTotal) : (1 / pr.items.length);
+        lineTotal = Math.round(subtotal * weight * 100) / 100;
+        unitPrice = prItem.quantity > 0 ? Math.round((lineTotal / prItem.quantity) * 100) / 100 : 0;
+      }
+
+      return {
+        itemName: prItem.itemName,
+        description: prItem.description,
+        quantity: prItem.quantity,
+        unit: prItem.unit,
+        unitPrice: Math.round(unitPrice * 100) / 100,
+        total: Math.round(lineTotal * 100) / 100,
+        receivedQuantity: 0,
+      };
+    });
+
+    // Enforce invariant: Sum of line totals must strictly equal PO subtotal
+    const sumLineTotals = poItemsData.reduce((s, i) => s + i.total, 0);
+    if (poItemsData.length > 0 && Math.abs(sumLineTotals - subtotal) > 0.001) {
+      const diff = Math.round((subtotal - sumLineTotals) * 100) / 100;
+      const lastIdx = poItemsData.length - 1;
+      poItemsData[lastIdx].total = Math.round((poItemsData[lastIdx].total + diff) * 100) / 100;
+      poItemsData[lastIdx].unitPrice = poItemsData[lastIdx].quantity > 0
+        ? Math.round((poItemsData[lastIdx].total / poItemsData[lastIdx].quantity) * 100) / 100
+        : 0;
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.create({
@@ -248,15 +312,7 @@ export async function createPurchaseOrder(
           status: PoStatus.PENDING_APPROVAL as string,
           createdById: req.user!.id,
           items: {
-            create: pr.items.map((item) => ({
-              itemName: item.itemName,
-              description: item.description,
-              quantity: item.quantity,
-              unit: item.unit,
-              unitPrice: item.quantity > 0 ? (item.estimatedTotal / item.quantity) : 0,
-              total: item.estimatedTotal,
-              receivedQuantity: 0,
-            })),
+            create: poItemsData,
           },
         },
         include: {

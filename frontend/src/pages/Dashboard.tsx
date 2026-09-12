@@ -27,21 +27,27 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isMountedRef = React.useRef(true);
+
   const fetchSummary = async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await dashboardApi.getSummary();
-      setData(res);
+      if (isMountedRef.current) setData(res);
     } catch (err: any) {
-      setError(err.message || 'Failed to load dashboard metrics.');
+      if (isMountedRef.current) setError(err.message || 'Failed to load dashboard metrics.');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchSummary();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   if (loading) {

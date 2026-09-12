@@ -9,7 +9,7 @@ router.use(authenticateToken);
 
 router.get('/', listVessels);
 router.get('/:id', getVesselById);
-router.post('/', requireRole(UserRole.ADMIN, UserRole.APPROVER), createVessel);
-router.patch('/:id', requireRole(UserRole.ADMIN, UserRole.APPROVER), updateVessel);
+router.post('/', requireRole(UserRole.ADMIN), createVessel);
+router.patch('/:id', requireRole(UserRole.ADMIN), updateVessel);
 
 export default router;

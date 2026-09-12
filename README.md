@@ -1,572 +1,435 @@
-# 🚢 Maritime Procurement Management System ERP
+# 🚢 Maritime Procurement Management System
 
-> **Enterprise-Grade Maritime Fleet Procurement & Supply Chain ERP Prototype**  
-> Built strictly adhering to the *AI-Agent-Ready Product Requirements Document (PRD)*.
+> **Full-Stack Maritime Fleet Procurement & Supply Chain ERP Prototype**  
+> Built strictly adhering to the Maritime Procurement Management System specification, featuring end-to-end requisitions, RBAC governance, competitive bidding, quotation benchmarking, line-item pricing consistency, transaction-safe audit logging, and anti-over-delivery concurrency controls.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6.2-646cff.svg)](https://vitejs.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-4.0-38b2ac.svg)](https://tailwindcss.com/)
 [![Express](https://img.shields.io/badge/Express-4.21-000000.svg)](https://expressjs.com/)
-[![Prisma](https://img.shields.io/badge/Prisma-6.4-2d3748.svg)](https://www.prisma.io/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.19-2d3748.svg)](https://www.prisma.io/)
 [![SQLite](https://img.shields.io/badge/Database-SQLite%20%2F%20PostgreSQL-003b57.svg)](https://sqlite.org/)
 
 ---
 
-## 📌 Executive Summary
+## 1. Project Overview
 
-The **Maritime Procurement Management System** is a unified digital platform designed specifically for commercial vessel fleet operators, ship managers, procurement departments, and onboard crew (Chief Engineers / Captains). 
+The **Maritime Procurement Management System** is a full-stack ERP prototype engineered for commercial vessel fleet operators, ship management companies, procurement departments, and shipboard crew (Chief Engineers and Captains). 
 
-It replaces manual paper manifests, fragmented email chains, and disconnected spreadsheets with a **governed, auditable, and automated end-to-end procurement workflow**:
-1. **Onboard Requisition (PR)** with automated line-item mathematics.
-2. **Approval Workflows** with reason capture and status gates.
-3. **Competitive Bidding (RFQ)** with multi-vendor distribution.
-4. **Quotation Comparison Matrix** benchmarking unit prices, lead times, warranties, and payment terms with automated best-bid highlights.
-5. **PO Issuance & Financial Approvals** with automated numbering (`PO-1001`).
-6. **Delivery & Goods Receipt (GRN)** with **mathematically strict anti-over-delivery guards**, partial/full fulfillment tracking, and auto-closure.
-7. **Immutable Audit Trail** capturing every single lifecycle mutation with actor, timestamp, and changes.
+In maritime operations, vessels require rapid, traceable provisioning of safety gear, engine spares, lubricants, and technical stores while docked in ports worldwide. This platform digitizes the procurement lifecycle into a structured, governed, and role-enforced workflow:
+- **Onboard Requisition (PR)**: Vessel crew raise itemized technical requisitions with cost estimations.
+- **Management Approval**: Department managers review and authorize requisitions with status gating.
+- **Request for Quotation (RFQ)**: Procurement officers invite multiple approved marine vendors to bid.
+- **Commercial & Technical Quote Evaluation**: Side-by-side comparison matrix highlighting pricing, lead times, and terms.
+- **Purchase Order (PO)**: Automated PO creation copying vendor quoted line-item prices (preventing PR estimate leaks).
+- **Goods Receipt (GRN) & Anti-Over-Delivery**: Strict concurrency-safe delivery logging supporting partial and full receipts.
+- **Transaction-Safe Audit Trail**: Server-side audit logging capturing all mutations atomically.
 
 ---
 
-## 🏗️ Architecture & Information Flow
+## 2. Live Demo
 
-### 1. High-Level System Architecture
+The prototype is configured for rapid zero-config local execution (SQLite) and production deployment (Supabase PostgreSQL / Render / Vercel).
+
+- **Local Frontend**: `http://localhost:5173`
+- **Local API Server**: `http://localhost:5000`
+- **API Health Check**: `http://localhost:5000/api/health`
+
+---
+
+## 3. Demo Credentials
+
+The database is pre-seeded with four role-specific accounts. All demo accounts use the standard password:
+
+🔑 **Default Password**: `Password123!`
+
+| Role | Name | Email | Primary Responsibilities |
+| :--- | :--- | :--- | :--- |
+| **Chief Engineer** | Chief Engineer | `chief.engineer@demo.com` | Creates and submits onboard PRs for assigned vessels; views vessel requisitions. |
+| **Procurement Officer** | Procurement Officer | `procurement@demo.com` | Creates RFQs, records vendor quotes, selects winning bids, generates POs, and logs port deliveries. |
+| **Procurement Manager** | Procurement Manager | `manager@demo.com` | Reviews and authorizes PRs and POs; enforces financial governance. |
+| **System Administrator** | System Administrator | `admin@demo.com` | Master data administration (vessels, users, vendors); global audit visibility and override rights. |
+
+---
+
+## 4. Core Procurement Workflow
+
+```mermaid
+flowchart LR
+    PR[1. Purchase Request] --> AP[2. PR Approval]
+    AP --> RFQ[3. RFQ & Bidding]
+    RFQ --> Q[4. Quotations Benchmarking]
+    Q --> V[5. Winner Selection]
+    V --> PO[6. Purchase Order]
+    PO --> POA[7. PO Approval]
+    POA --> D[8. Port Delivery / GRN]
+    D --> C[9. Completed]
+```
+
+1. **Requisition**: Chief Engineer raises a PR (e.g. 10 units of Heavy Fuel Oil Filter Elements for *MV Ocean Star*).
+2. **Authorization**: Procurement Manager reviews and approves the PR.
+3. **Sourcing**: Procurement Officer creates an RFQ inviting multiple marine suppliers (e.g. ShipTech Marine, MarineParts Ltd., Oceanic Supplies).
+4. **Quotation**: Quotations are recorded with unit prices, lead times, and payment terms.
+5. **Vendor Selection**: Commercial evaluation matrix compares bids; officer selects winning supplier with an audit rationale.
+6. **Purchase Order**: PO is generated. Line items strictly inherit the selected vendor's quoted unit prices and line totals.
+7. **PO Authorization**: Procurement Manager approves the PO, transitioning status to `ORDERED`.
+8. **Delivery & GRN**: Port agent records goods receipt. The system supports partial deliveries and enforces atomic anti-over-delivery guards.
+9. **Closure**: Once 100% of ordered quantities are received, PO and PR automatically transition to `COMPLETED`.
+
+---
+
+## 5. UI Walkthrough
+
+The user interface is built with React 19, Tailwind CSS, and Lucide Maritime icons:
+- **Operational Dashboard**: Role-scoped KPI cards (`Active POs`, `Pending Deliveries`, `Open RFQs`), pending approval queue, and recent activities.
+- **PR Management & Item Builder**: Multi-line item requisition form with automated total calculations and priority badging.
+- **Quote Comparison Matrix**: Side-by-side commercial comparison highlighting lowest bid, fastest delivery, and terms.
+- **Goods Receipt Console**: Interactive delivery intake form with live remaining balance calculation and instant over-delivery rejection.
+- **Audit Timeline**: Visual chronological history of every action, actor, timestamp, and justification.
+
+---
+
+## 6. Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client["Frontend (React 19 + Vite 6 + Tailwind CSS v4)"]
-        UI["Modern Responsive UI\n(Enterprise Maritime Theme)"]
-        Router["React Router v7\n(Role-Protected Routes)"]
-        AuthCtx["Auth Context & Token Interceptor\n(Bearer JWT)"]
-        Pages["Pages & Features\n(PRs, RFQs, POs, Approvals, Deliveries)"]
+    subgraph Client["Frontend (React 19 + TypeScript + Vite 6 + Tailwind CSS)"]
+        UI["Responsive Maritime UI"]
+        Router["React Router v7 (Role Guards)"]
+        AuthCtx["Auth Context (JWT Interceptor)"]
+        Pages["Module Views (PR, RFQ, PO, Deliveries, Dashboard)"]
         UI --> Router --> Pages
         Pages --> AuthCtx
     end
 
-    subgraph Server["Backend API (Node.js + Express + TypeScript)"]
-        MW["Middleware Layer\n(CORS, JWT Auth, Role RBAC, Global Error Handler)"]
-        RouterAPI["REST API Router (/api/v1)"]
-        
-        subgraph Modules["Domain Modules"]
-            AuthMod["Auth Module"]
-            PRMod["Purchase Requests Module"]
-            ApprMod["Approvals Engine"]
-            RfqMod["RFQ & Quotations Module"]
-            POMod["Purchase Orders Module"]
-            DelivMod["Deliveries & GRN Module"]
-            AuditMod["Audit Logging Service"]
-        end
-
-        MW --> RouterAPI
-        RouterAPI --> Modules
+    subgraph Server["Backend (Node.js + Express + TypeScript)"]
+        Config["Config & Fail-Fast Env Validation"]
+        MW["Auth & RBAC Middleware"]
+        API["REST Endpoints (/api/*)"]
+        Services["Domain Controllers & Transaction Services"]
+        Config --> MW --> API --> Services
     end
 
-    subgraph Data["Database Layer (Prisma ORM)"]
-        Prisma["Prisma Client ORM"]
-        Audit["AuditLog Model\n(Immutable Event Store)"]
-        DB[(Local SQLite / Supabase PostgreSQL)]
-        Modules --> Prisma
+    subgraph Storage["Database Layer (Prisma ORM)"]
+        Prisma["Prisma Client"]
+        Audit["Audit Log Engine (Atomic)"]
+        DB[(SQLite / PostgreSQL)]
+        Services --> Prisma
+        Services --> Audit
         Prisma --> DB
-        AuditMod -.->|Transaction Safe| Audit
+        Audit --> DB
     end
 
-    AuthCtx -->|REST API Requests / JSON| MW
+    AuthCtx -->|Bearer JWT HTTP Requests| MW
 ```
 
 ---
 
-### 2. End-to-End Procurement Lifecycle State Machine
+## 7. Database / ER Diagram
 
-```mermaid
-stateDiagram-v2
-    [*] --> DRAFT: Requester creates PR
-    DRAFT --> SUBMITTED: Requester submits PR
-    
-    state "PR Review" as PRReview {
-        SUBMITTED --> REJECTED: Approver rejects with reason
-        SUBMITTED --> APPROVED: Approver approves PR
-    }
-
-    state "RFQ & Bidding" as RFQPhase {
-        APPROVED --> RFQ_ISSUED: Procurement creates RFQ for >= 1 vendor
-        RFQ_ISSUED --> QUOTES_RECEIVED: Record vendor price, currency & lead time
-        QUOTES_RECEIVED --> WINNER_SELECTED: Side-by-side comparison & select quote
-    }
-
-    state "Purchase Order & Delivery" as POPhase {
-        WINNER_SELECTED --> PO_DRAFT: Generate PO from winning quote
-        PO_DRAFT --> PO_SUBMITTED: Submit PO for authorization
-        PO_SUBMITTED --> PO_APPROVED: Approver approves (Auto -> ORDERED)
-        PO_SUBMITTED --> PO_REJECTED: Approver rejects with reason
-        PO_APPROVED --> ORDERED: Supplier receives PO
-        ORDERED --> PARTIALLY_DELIVERED: Partial GRN logged
-        PARTIALLY_DELIVERED --> DELIVERED: Remaining items received
-        ORDERED --> DELIVERED: 100% items received
-    }
-
-    DELIVERED --> COMPLETED: PR & PO auto-closed
-    COMPLETED --> [*]
-```
-
----
-
-### 3. Entity Relationship Diagram (ERD)
+Mermaid Entity Relationship Diagram reflecting the active Prisma schema:
 
 ```mermaid
 erDiagram
-    USER {
+    User ||--o{ PurchaseRequest : "requests"
+    User ||--o{ Approval : "authorizes"
+    User ||--o{ PurchaseOrder : "creates"
+    User ||--o{ GoodsReceipt : "receives"
+    User ||--o{ AuditLog : "triggers"
+
+    Vessel ||--o{ PurchaseRequest : "belongs to"
+    Vessel ||--o{ PurchaseOrder : "supplied to"
+
+    Vendor ||--o{ RfqVendor : "invited in"
+    Vendor ||--o{ Quotation : "submits"
+    Vendor ||--o{ PurchaseOrder : "fulfills"
+
+    PurchaseRequest ||--|{ PurchaseRequestItem : "contains"
+    PurchaseRequest ||--o{ Approval : "undergoes"
+    PurchaseRequest ||--o| Rfq : "originates"
+    PurchaseRequest ||--o{ PurchaseOrder : "executed via"
+
+    Rfq ||--|{ RfqVendor : "distributes to"
+    Rfq ||--o{ Quotation : "collects"
+    Rfq ||--o{ PurchaseOrder : "generates"
+
+    Quotation ||--|{ QuotationItem : "itemizes"
+    Quotation ||--o{ PurchaseOrder : "awarded to"
+
+    PurchaseOrder ||--|{ PurchaseOrderItem : "specifies"
+    PurchaseOrder ||--o{ Approval : "requires"
+    PurchaseOrder ||--o{ GoodsReceipt : "delivered in"
+
+    GoodsReceipt ||--|{ GoodsReceiptItem : "logs"
+    PurchaseOrderItem ||--o{ GoodsReceiptItem : "fulfilled by"
+
+    User {
         string id PK
         string email UK
         string name
-        string role "REQUESTER | APPROVER | PROCUREMENT_OFFICER | ADMIN"
+        string role
         string department
-        string status "ACTIVE | INACTIVE"
+        string status
     }
 
-    VESSEL {
+    Vessel {
         string id PK
-        string name
         string imoNumber UK
+        string name
+        string type
         string flag
-        string vesselType
-        string status "ACTIVE | INACTIVE"
-        int buildYear
-        float dWT
+        string status
     }
 
-    VENDOR {
+    Vendor {
         string id PK
+        string vendorCode UK
         string name
+        string contactPerson
         string email
         string phone
-        string category
-        string status "ACTIVE | INACTIVE"
-        float rating
+        string categories
         string paymentTerms
+        string status
     }
 
-    PURCHASE_REQUEST {
+    PurchaseRequest {
         string id PK
         string prNumber UK
         string vesselId FK
         string requesterId FK
         string department
-        string priority "LOW | MEDIUM | HIGH | URGENT"
-        string status "DRAFT | PENDING_APPROVAL | APPROVED | ..."
+        string priority
         datetime requiredDate
         float estimatedTotal
-        string reason
+        string status
     }
 
-    PURCHASE_REQUEST_ITEM {
+    PurchaseRequestItem {
         string id PK
         string purchaseRequestId FK
         string itemName
-        string partNumber
-        float quantity
+        int quantity
         string unit
         float estimatedUnitPrice
         float estimatedTotal
     }
 
-    APPROVAL {
-        string id PK
-        string entityType "PR | PO"
-        string entityId
-        string approverId FK
-        int stepNumber
-        string status "PENDING | APPROVED | REJECTED"
-        string comments
-    }
-
-    RFQ {
-        string id PK
-        string rfqNumber UK
-        string purchaseRequestId FK
-        string status "DRAFT | ISSUED | CLOSED | CANCELLED"
-        datetime deadline
-    }
-
-    RFQ_VENDOR {
-        string id PK
-        string rfqId FK
-        string vendorId FK
-        datetime invitedAt
-    }
-
-    QUOTATION {
+    Quotation {
         string id PK
         string rfqId FK
         string vendorId FK
         string quotationNumber
-        float unitPrice
         float totalPrice
-        string currency
-        int leadTimeDays
-        int warrantyMonths
+        int deliveryDays
         string paymentTerms
-        string status "SUBMITTED | ACCEPTED | REJECTED"
-        boolean isWinningQuote
+        string status
     }
 
-    PURCHASE_ORDER {
+    QuotationItem {
+        string id PK
+        string quotationId FK
+        string purchaseRequestItemId FK
+        string itemName
+        int quantity
+        float unitPrice
+        float total
+    }
+
+    PurchaseOrder {
         string id PK
         string poNumber UK
-        string purchaseRequestId FK
         string vendorId FK
-        string quotationId FK
         string vesselId FK
-        string createdById FK
-        string status "DRAFT | PENDING_APPROVAL | ORDERED | DELIVERED | ..."
+        string purchaseRequestId FK
+        string quotationId FK
         float subtotal
+        float taxRate
         float taxAmount
-        float totalAmount
-        string paymentTerms
+        float total
         datetime deliveryDate
+        string status
     }
 
-    PURCHASE_ORDER_ITEM {
+    PurchaseOrderItem {
         string id PK
         string purchaseOrderId FK
-        string prItemId FK
         string itemName
-        string partNumber
-        float quantity
-        float deliveredQuantity
+        int quantity
         float unitPrice
-        float totalPrice
+        float total
+        int receivedQuantity
     }
 
-    GOODS_RECEIPT {
+    GoodsReceipt {
         string id PK
         string receiptNumber UK
         string purchaseOrderId FK
         string receivedById FK
-        datetime receivedDate
-        string deliveryNoteNumber
-        string condition "GOOD | DAMAGED | SHORTAGE | REJECTED"
-        string location
+        datetime deliveryDate
+        string condition
     }
 
-    GOODS_RECEIPT_ITEM {
+    GoodsReceiptItem {
         string id PK
         string goodsReceiptId FK
         string poItemId FK
-        float quantityReceived
-        string remarks
+        int quantityReceived
     }
 
-    AUDIT_LOG {
+    AuditLog {
         string id PK
-        string userId
+        datetime timestamp
+        string userId FK
         string userName
         string userRole
         string action
         string entityType
         string entityId
         string description
-        datetime timestamp
     }
-
-    USER ||--o{ PURCHASE_REQUEST : "submits"
-    USER ||--o{ APPROVAL : "authorizes"
-    USER ||--o{ PURCHASE_ORDER : "creates"
-    USER ||--o{ GOODS_RECEIPT : "receives"
-    
-    VESSEL ||--o{ PURCHASE_REQUEST : "requisitions"
-    VESSEL ||--o{ PURCHASE_ORDER : "destination"
-
-    VENDOR ||--o{ RFQ_VENDOR : "invited"
-    VENDOR ||--o{ QUOTATION : "submits"
-    VENDOR ||--o{ PURCHASE_ORDER : "supplies"
-
-    PURCHASE_REQUEST ||--|{ PURCHASE_REQUEST_ITEM : "contains"
-    PURCHASE_REQUEST ||--o| RFQ : "bidding"
-    PURCHASE_REQUEST ||--o| PURCHASE_ORDER : "procured_via"
-
-    RFQ ||--|{ RFQ_VENDOR : "distributes_to"
-    RFQ ||--o{ QUOTATION : "collects"
-    QUOTATION ||--o| PURCHASE_ORDER : "awarded_in"
-
-    PURCHASE_ORDER ||--|{ PURCHASE_ORDER_ITEM : "comprises"
-    PURCHASE_ORDER ||--o{ GOODS_RECEIPT : "fulfilled_by"
-
-    GOODS_RECEIPT ||--|{ GOODS_RECEIPT_ITEM : "logs"
-    PURCHASE_ORDER_ITEM ||--o{ GOODS_RECEIPT_ITEM : "tracks_receipt"
 ```
 
 ---
 
-## 💻 Tech Stack Overview
+## 8. Roles & Permissions (RBAC Matrix)
 
-| Layer | Technology | Description |
-| :--- | :--- | :--- |
-| **Frontend Framework** | **React 19** | Latest React features, hooks, strict mode, concurrent rendering |
-| **Build Tool** | **Vite 6** | Ultra-fast HMR and optimized production bundling |
-| **Styling & Design** | **Tailwind CSS v4** | Clean, accessible, modern maritime corporate theme (slate/blue) |
-| **Icons** | **Lucide React** | Consistent, modern maritime & ERP icon system |
-| **Routing** | **React Router v7** | Client-side routing with role-based access route guards |
-| **Backend Runtime** | **Node.js 18+ / Express** | High-performance RESTful API with structured MVC architecture |
-| **Language** | **TypeScript 5.7** | End-to-end type safety across backend and frontend |
-| **ORM** | **Prisma ORM 6.4** | Type-safe database queries, schema migrations, and relations |
-| **Database** | **SQLite (Local) / Supabase (Prod)** | Out-of-the-box zero-setup local database (`dev.db`) + Supabase PostgreSQL schema (`schema.postgresql.prisma`) |
-| **Authentication** | **JWT + bcryptjs** | Stateless Bearer token authentication with password hashing |
-| **Testing** | **Node Test Runner / Assert** | 16 comprehensive automated tests validating business rules |
+Every state transition and data mutation is validated by server-side middleware (`requireRole`):
 
----
-
-## 👥 Role-Based Access Control (RBAC) Matrix
-
-| Feature / Action | Requester *(Chief Engineer)* | Procurement Officer | Approver *(Procurement Mgr)* | Administrator *(Fleet Admin)* |
+| Action | Requester | Procurement Officer | Approver / Manager | Fleet Admin |
 | :--- | :---: | :---: | :---: | :---: |
-| **View Dashboard** | ✅ *(Filtered)* | ✅ | ✅ | ✅ |
-| **Create / Edit Draft PR** | ✅ | ✅ | ❌ | ✅ |
-| **Submit PR for Approval** | ✅ | ✅ | ❌ | ✅ |
-| **Approve / Reject PR** | ❌ | ❌ | ✅ | ✅ |
-| **Create RFQ & Add Vendors** | ❌ | ✅ | ❌ | ✅ |
-| **Enter Quotations** | ❌ | ✅ | ❌ | ✅ |
-| **Compare Quotes & Select Winner** | ❌ | ✅ | ❌ | ✅ |
+| **Login / View Assigned PRs** | ✅ | ✅ | ✅ | ✅ |
+| **Create & Submit PR** | ✅ | ❌ | ❌ | ✅ |
+| **Approve / Reject PR** | ❌ *(Self-approval blocked)* | ❌ | ✅ | ✅ |
+| **Create RFQ & Add Quotes** | ❌ | ✅ | ❌ | ✅ |
+| **Select Winning Supplier** | ❌ | ✅ | ❌ | ✅ |
 | **Generate Purchase Order** | ❌ | ✅ | ❌ | ✅ |
 | **Approve / Reject PO** | ❌ | ❌ | ✅ | ✅ |
-| **Record Goods Receipts (GRN)** | ❌ | ✅ | ❌ | ✅ |
-| **Manage Vessels Fleet** | 👁️ *(View)* | 👁️ *(View)* | 👁️ *(View)* | ✅ *(Full CRUD)* |
-| **Manage Vendors** | ❌ | ✅ | 👁️ *(View)* | ✅ *(Full CRUD)* |
-| **Manage Users & Roles** | ❌ | ❌ | ❌ | ✅ *(Full CRUD)* |
-| **View System Audit Logs** | ❌ | 👁️ *(View)* | 👁️ *(View)* | ✅ *(Full View)* |
+| **Log Port Delivery (GRN)** | ❌ | ✅ | ❌ | ✅ |
+| **Access Full Audit Trail** | ❌ *(HTTP 403)* | ✅ | ✅ | ✅ |
+| **Vessels & Master Data CRUD** | ❌ *(Read-only)* | ❌ *(Read-only)* | ❌ *(Read-only)* | ✅ *(Full CRUD)* |
 
 ---
 
-## 🔑 Pre-Seeded Demo Accounts
+## 9. Key Business Rules & Guard Invariants
 
-The system comes pre-populated with ready-to-use accounts for each PRD persona:
-
-| Persona | Email | Password | Role | Primary Workspace |
-| :--- | :--- | :--- | :--- | :--- |
-| **Chief Engineer** | `chief.engineer@demo.com` | `Password123!` | `REQUESTER` | Vessel Requisitions & Status |
-| **Procurement Officer** | `procurement@demo.com` | `Password123!` | `PROCUREMENT_OFFICER` | RFQs, Quotes, POs, Deliveries |
-| **Procurement Manager** | `manager@demo.com` | `Password123!` | `APPROVER` | Pending Approvals & Budgets |
-| **Fleet Administrator** | `admin@demo.com` | `Password123!` | `ADMIN` | Fleet, Users, Audit Logs |
-
-> 💡 *Tip: The login page includes 1-click demo account selector buttons to quickly log in as any role without typing!*
+1. **PO Price Inheritance**: PO line items inherit `unitPrice` and `total` directly from the selected vendor quotation, never from the PR estimated prices. Sum of line totals strictly equals PO subtotal.
+2. **Conflict of Interest**: Requesters cannot approve their own purchase requests.
+3. **RFQ State Guards**: Quotes can only be added to `OPEN` RFQs. Once a winner is selected, the RFQ closes and subsequent winner selections are rejected (HTTP 409).
+4. **PO Deduplication**: A quotation or PR cannot generate multiple purchase orders (HTTP 409).
+5. **Anti-Over-Delivery**: Delivery receipts cannot exceed ordered quantities (`receivedQuantity + newQuantity <= orderedQuantity`).
+6. **Concurrency Protection**: Delivery intake reads fresh balances and updates increments atomically inside `prisma.$transaction`. Simultaneous delivery requests cannot over-deliver.
+7. **Transaction-Safe Audit Trail**: In financial and state-changing mutations, business updates and audit logging execute within the same database transaction; if an audit log write fails, the entire transaction rolls back.
+8. **Dashboard Data Scoping**: Requesters view only their own vessel requisitions and related orders.
 
 ---
 
-## 🚀 Quick Start Guide
+## 10. Local Setup
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) version **18.0.0 or higher**
-- `npm` package manager
+- Node.js (v18+ recommended, v22 tested)
+- npm
 
-### 1. Installation
-Clone the repository and install dependencies in both backend and frontend:
-```bash
-# Clone the repository
-git clone <repository-url>
-cd procurementSystem
+### Installation & Initialization
 
-# Install backend dependencies
-cd backend
-npm install
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Rajan14-11/maritime-procurement-system.git
+   cd maritime-procurement-system
+   ```
 
-# Install frontend dependencies
-cd ../frontend
-npm install
-cd ..
-```
+2. **Install dependencies**:
+   ```bash
+   npm --prefix backend install
+   npm --prefix frontend install
+   ```
 
-### 2. Database Initialization
-The project includes a pre-configured SQLite database setup for instant offline development.
-```bash
-cd backend
-# Generate Prisma Client & push schema
-npx prisma db push
+3. **Configure environment variables**:
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
 
-# Seed master data (4 users, 4 vessels, 4 vendors, sample PRs, audit logs)
-npm run seed
-cd ..
-```
+4. **Initialize database schema and seed demo data**:
+   ```bash
+   npm --prefix backend run prisma:push
+   npm --prefix backend run seed
+   ```
 
-### 3. Run Development Servers
-Open two terminal windows or run using the root scripts:
-
-**Terminal 1 (Backend API):**
-```bash
-cd backend
-npm run dev
-# Running on http://localhost:5000
-```
-
-**Terminal 2 (Frontend Client):**
-```bash
-cd frontend
-npm run dev
-# Running on http://localhost:5173
-```
-
-Now open your browser and navigate to **`http://localhost:5173`**.
+5. **Start development servers**:
+   - Backend API:
+     ```bash
+     npm --prefix backend run dev
+     ```
+   - Frontend UI:
+     ```bash
+     npm --prefix frontend run dev
+     ```
+   Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🧪 Automated Testing
+## 11. Environment Variables
 
-The backend includes a comprehensive automated test suite verifying 16 core business rules, including status progression, authorization gates, and anti-over-delivery math.
+Configure in `backend/.env`:
 
-To execute the test suite:
+```env
+PORT=5000
+DATABASE_URL="file:./dev.db"
+# For Supabase / PostgreSQL deployment:
+# DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/[DB_NAME]"
+JWT_SECRET="replace-with-a-secure-random-jwt-secret-in-production"
+FRONTEND_URL="http://localhost:5173"
+NODE_ENV="development"
+```
+
+The server fails fast at startup if `JWT_SECRET` is missing.
+
+---
+
+## 12. Testing
+
+The repository features automated test suites verifying business logic, role permissions, state machines, and concurrency safety:
+
 ```bash
-cd backend
-npm test
+npm --prefix backend test
 ```
 
-### Test Suite Coverage
-```
-✔ PR-1: Requester can create a draft PR with calculated total amount
-✔ PR-2: Requester can submit PR for approval (transitions DRAFT -> SUBMITTED)
-✔ PR-3: Non-approvers cannot approve a submitted PR (HTTP 403 Forbidden)
-✔ PR-4: Approver can approve PR (transitions SUBMITTED -> APPROVED)
-✔ PR-5: Approver can reject PR with mandatory reason
-✔ RFQ-1: Procurement Officer can create RFQ from approved PR
-✔ RFQ-2: Cannot attach duplicate vendors to same RFQ (HTTP 400 Bad Request)
-✔ RFQ-3: Procurement Officer can record vendor quotations
-✔ RFQ-4: Quote comparison matrix accurately calculates lowest price and fastest delivery
-✔ RFQ-5: Procurement Officer can select winning quote
-✔ PO-1: Generate PO from winning quotation with auto-incremented PO number
-✔ PO-2: Approver can approve PO (transitions to APPROVED -> ORDERED)
-✔ DELIV-1: Anti-Over-Delivery: Cannot receive more than ordered quantity (HTTP 400)
-✔ DELIV-2: Partial delivery updates PO status to PARTIALLY_DELIVERED
-✔ DELIV-3: Full delivery completes both Purchase Order and Purchase Request
-✔ AUDIT-1: Audit log records actor, action, timestamp, and entity mutations
-```
+### Test Coverage (40 Tests Total, 0 Failures):
+- **Workflow Test Suite** (`workflow.test.ts`):
+  - PR creation, line-item mathematics, approval transition
+  - Multi-vendor RFQ creation and unique vendor constraint enforcement
+  - Vendor quotation recording and winner selection
+  - PO generation, approval to `ORDERED`
+  - Goods receipt, partial delivery tracking (6/10), completion (10/10)
+- **Adversarial & Invariant Security Test Suite** (`adversarial-guards.test.ts`):
+  - Requester self-approval block (HTTP 403)
+  - Non-approver permission block (HTTP 403)
+  - Cross-user draft PR submission block (HTTP 403)
+  - Unapproved PR RFQ creation block (HTTP 400)
+  - Closed RFQ quote selection block (HTTP 400)
+  - Duplicate winner selection block (HTTP 409)
+  - Duplicate PO creation block (HTTP 409)
+  - Inactive vendor block (HTTP 400)
+  - Requester audit log access block (HTTP 403)
+  - Anti-over-delivery quantity validation (HTTP 400)
+  - Unapproved PO delivery block (HTTP 400)
+  - PO price quotation inheritance verification
+  - Concurrent delivery simulation stress test
 
 ---
 
-## 📖 End-to-End Walkthrough Scenario (PRD Section 45)
+## 13. Known Limitations
 
-Follow this 5-minute interactive walkthrough to experience the entire procurement flow:
-
-1. **Step 1: Sign in as Chief Engineer** (`chief.engineer@demo.com`)
-   - Navigate to **Purchase Requests** → click **New Request**.
-   - Select Vessel: `MV Ocean Star`.
-   - Add Item: `Heavy Fuel Oil Filter Element`, Qty: `10`, Unit Price: `₹8,500`.
-   - Click **Save & Submit for Approval**.
-   
-2. **Step 2: Sign in as Procurement Manager** (`manager@demo.com`)
-   - Notice the **Approvals Queue** badge indicator.
-   - Open the pending PR for MV Ocean Star.
-   - Click **Approve Request** (optional remarks: *"Urgent engine maintenance"*).
-   - Status updates to **APPROVED**.
-
-3. **Step 3: Sign in as Procurement Officer** (`procurement@demo.com`)
-   - Navigate to **RFQs & Quotes** → click **Create RFQ**.
-   - Select the approved PR and select 3 vendors:
-     - `ShipTech Marine Solutions`
-     - `Oceanic Marine Supplies`
-     - `Gulf Marine Services`
-   - In RFQ Detail, click **Add Quotation** for each vendor:
-     - ShipTech: `₹8,200/unit`, Lead time: `3 days`, Warranty: `12 months`.
-     - Oceanic: `₹8,600/unit`, Lead time: `5 days`, Warranty: `6 months`.
-     - Gulf Marine: `₹8,100/unit`, Lead time: `7 days`, Warranty: `6 months`.
-   - View the **Comparison Matrix**: notice lowest price and fastest delivery badges.
-   - Click **Select as Winner** on `ShipTech Marine Solutions`.
-   - Click **Generate Purchase Order** → PO created (`PO-1001`).
-
-4. **Step 4: Sign in as Procurement Manager** (`manager@demo.com`)
-   - Go to **Approvals Queue** → **Purchase Orders** tab.
-   - Click **Approve** on `PO-1001`.
-   - PO status automatically transitions to **ORDERED**.
-
-5. **Step 5: Sign in as Procurement Officer** (`procurement@demo.com`)
-   - Go to **Purchase Orders** → open `PO-1001`.
-   - Click **Record Delivery / Goods Receipt**.
-   - Enter `10` units received, Condition: `GOOD`, Location: `Port of Singapore, Berth 4`.
-   - Click **Save Goods Receipt**.
-   - **Verification**:
-     - Goods Receipt generated.
-     - Line items show `10 / 10 Received (100%)`.
-     - PO status advances to **DELIVERED**.
-     - PR status advances to **COMPLETED**.
-     - System Audit Log captures every single action chronologically.
+- **Email Dispatch**: External supplier RFQ invitations and PO emails are simulated in-app rather than sent via real SMTP gateways.
+- **Identifier Generation**: Sequential numbering (`PR-1001`, `PO-1001`) relies on database count/latest sequence. In distributed high-concurrency clusters, database sequences or UUIDs are recommended.
+- **Offline PWA**: Shipboard offline synchronization is not yet implemented; active connection to backend API is required.
 
 ---
 
-## 📂 Project Structure
+## 14. Future Improvements
 
-```
-procurementSystem/
-├── README.md                      # Comprehensive project documentation
-├── package.json                   # Root scripts for monorepo operations
-├── backend/                       # Express + Prisma Backend
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── prisma/
-│   │   ├── schema.prisma          # Active SQLite Prisma Schema
-│   │   ├── schema.postgresql.prisma # Supabase PostgreSQL Schema
-│   │   ├── seed.cjs               # Master data seeding script
-│   │   └── dev.db                 # Seeded SQLite database file
-│   └── src/
-│       ├── config/prisma.ts       # Prisma client singleton
-│       ├── types/index.ts         # Domain enums & interfaces
-│       ├── middleware/auth.ts     # JWT validation & RBAC guards
-│       ├── middleware/errorHandler.ts # Centralized JSON error handler
-│       ├── utils/audit.ts         # Audit logging helper
-│       ├── modules/               # Domain feature modules
-│       │   ├── auth/              # Authentication & user profile
-│       │   ├── users/             # User admin & role management
-│       │   ├── vessels/           # Fleet master data
-│       │   ├── vendors/           # Supplier directory
-│       │   ├── purchaseRequests/  # PR creation, math, approval
-│       │   ├── approvals/         # Approvals queue aggregation
-│       │   ├── rfqs/              # RFQ distribution & quote matrix
-│       │   ├── purchaseOrders/    # PO generation & approval
-│       │   ├── deliveries/        # GRN logging & anti-over-delivery
-│       │   ├── dashboard/         # Live metrics & recent activities
-│       │   └── auditLogs/         # Compliance audit log query
-│       ├── tests/workflow.test.ts # 16 automated business tests
-│       ├── app.ts                 # Express application setup
-│       └── server.ts              # Server entry point (Port 5000)
-└── frontend/                      # React 19 + Vite 6 + Tailwind CSS v4
-    ├── package.json
-    ├── tsconfig.json
-    ├── vite.config.ts
-    ├── index.html
-    └── src/
-        ├── index.css              # Tailwind CSS styles & design tokens
-        ├── vite-env.d.ts          # Vite typing declarations
-        ├── types/index.ts         # Frontend TypeScript interfaces
-        ├── services/api.ts        # Centralized Fetch API client with Bearer auth
-        ├── context/AuthContext.tsx # User session & role context
-        ├── layouts/MainLayout.tsx # Maritime ERP sidebar & header layout
-        ├── components/            # Reusable UI components
-        │   ├── StatusBadge.tsx    # State badge with colors
-        │   ├── PriorityBadge.tsx  # Urgency badge
-        │   ├── WorkflowStepper.tsx # Visual progress stepper
-        │   ├── Card.tsx           # Standardized container
-        │   └── Modal.tsx          # Accessible modal dialog
-        ├── pages/                 # Full feature views
-        │   ├── Login.tsx          # Login with 1-click demo helper
-        │   ├── Dashboard.tsx      # Executive KPIs & live feed
-        │   ├── PurchaseRequests/  # List, Create, Detail
-        │   ├── Approvals/         # Approver queue for PRs & POs
-        │   ├── Rfqs/              # RFQs list, Comparison Matrix
-        │   ├── PurchaseOrders/    # PO list, PO Detail, GRN modal
-        │   ├── Deliveries/        # Deliveries history
-        │   ├── Vendors/           # Supplier directory
-        │   ├── MasterData/        # Fleet vessels & user admin
-        │   └── AuditLogs/         # Immutable audit trail view
-        ├── App.tsx                # Role-guarded route definitions
-        └── main.tsx               # Client entry point
-```
-
----
-
-## 🔒 Security & Compliance Highlights
-
-- **Stateless Authentication**: JWT tokens with 24-hour expiration stored safely in client state.
-- **Role-Based Routing**: Both client-side React routes and server-side Express endpoints strictly validate required permissions.
-- **Audit Logging**: Every create, update, approve, reject, and delivery event is written to the `AuditLog` table with user ID, IP address, timestamp, and JSON before/after state.
-- **Zero Silent Over-Deliveries**: Every Goods Receipt submission validates against remaining pending quantities in the database before incrementing inventory.
-
----
-
-## 📄 License & Acknowledgments
-
-Developed as an enterprise-grade prototype following maritime fleet procurement industry standards and the **Maritime Procurement Management System — AI-Agent-Ready PRD**.
+- **Supabase Production Migration**: Connect to managed Supabase PostgreSQL with read replicas.
+- **PDF Generation**: Native PDF rendering of formal Maritime Purchase Orders and Goods Inspection Certificates.
+- **Direct Vendor Portal**: Supplier portal allowing vendors to log in and submit bids directly through secure tokens.
+- **Vessel Tracking**: AIS vessel location integration to recommend suppliers based on actual ship coordinates and port ETA.

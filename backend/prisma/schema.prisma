@@ -168,10 +168,28 @@ model Quotation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  items          QuotationItem[]
   purchaseOrders PurchaseOrder[]
 
   @@unique([rfqId, vendorId])
   @@map("quotations")
+}
+
+model QuotationItem {
+  id                    String    @id @default(cuid())
+  quotationId           String
+  quotation             Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  purchaseRequestItemId String?
+  itemName              String
+  description           String?
+  quantity              Int
+  unit                  String    @default("Pieces")
+  unitPrice             Float
+  total                 Float
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("quotation_items")
 }
 
 model PurchaseOrder {

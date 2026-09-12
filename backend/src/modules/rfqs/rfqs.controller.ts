@@ -294,7 +294,9 @@ export async function addQuotation(
       where: { id },
       include: {
         rfqVendors: true,
-        purchaseRequest: true,
+        purchaseRequest: {
+          include: { items: true },
+        },
       },
     });
 
@@ -362,6 +364,65 @@ export async function addQuotation(
         include: { vendor: true },
       });
 
+      // Populate quotation items:
+      const prItems = rfq.purchaseRequest.items || [];
+      if (Array.isArray(req.body.items) && req.body.items.length > 0) {
+        for (const itm of req.body.items) {
+          await tx.quotationItem.create({
+            data: {
+              quotationId: q.id,
+              purchaseRequestItemId: itm.purchaseRequestItemId || itm.prItemId || null,
+              itemName: itm.itemName,
+              description: itm.description || null,
+              quantity: Number(itm.quantity),
+              unit: itm.unit || 'Pieces',
+              unitPrice: Math.round(Number(itm.unitPrice) * 100) / 100,
+              total: Math.round(Number(itm.total) * 100) / 100,
+            },
+          });
+        }
+      } else if (prItems.length === 1) {
+        const prItem = prItems[0];
+        const unitPrice = prItem.quantity > 0 ? Math.round((price / prItem.quantity) * 100) / 100 : 0;
+        await tx.quotationItem.create({
+          data: {
+            quotationId: q.id,
+            purchaseRequestItemId: prItem.id,
+            itemName: prItem.itemName,
+            description: prItem.description,
+            quantity: prItem.quantity,
+            unit: prItem.unit,
+            unitPrice,
+            total: price,
+          },
+        });
+      } else if (prItems.length > 1) {
+        const prTotal = prItems.reduce((s, i) => s + i.estimatedTotal, 0);
+        let allocatedSum = 0;
+        for (let idx = 0; idx < prItems.length; idx++) {
+          const prItem = prItems[idx];
+          const isLast = idx === prItems.length - 1;
+          const weight = prTotal > 0 ? (prItem.estimatedTotal / prTotal) : (1 / prItems.length);
+          const lineTotal = isLast
+            ? Math.round((price - allocatedSum) * 100) / 100
+            : Math.round(price * weight * 100) / 100;
+          allocatedSum += lineTotal;
+          const unitPrice = prItem.quantity > 0 ? Math.round((lineTotal / prItem.quantity) * 100) / 100 : 0;
+          await tx.quotationItem.create({
+            data: {
+              quotationId: q.id,
+              purchaseRequestItemId: prItem.id,
+              itemName: prItem.itemName,
+              description: prItem.description,
+              quantity: prItem.quantity,
+              unit: prItem.unit,
+              unitPrice,
+              total: lineTotal,
+            },
+          });
+        }
+      }
+
       await logAudit(
         {
           userId: req.user!.id,
@@ -378,10 +439,15 @@ export async function addQuotation(
       return q;
     });
 
+    const refreshed = await prisma.quotation.findUnique({
+      where: { id: quotation.id },
+      include: { vendor: true, items: true },
+    });
+
     res.status(201).json({
       success: true,
       message: `Quotation from ${vendor.name} recorded successfully.`,
-      data: { quotation },
+      data: { quotation: refreshed || quotation },
     });
   } catch (error) {
     next(error);
@@ -406,12 +472,37 @@ export async function selectQuotation(
       where: { id },
       include: {
         purchaseRequest: true,
-        quotations: { include: { vendor: true } },
+        quotations: { include: { vendor: true, items: true } },
       },
     });
 
     if (!rfq) {
       res.status(404).json({ success: false, message: 'RFQ not found.' });
+      return;
+    }
+
+    if (rfq.status !== RfqStatus.OPEN) {
+      res.status(400).json({
+        success: false,
+        message: `Cannot select a quotation from an RFQ with status ${rfq.status}. RFQ must be OPEN.`,
+      });
+      return;
+    }
+
+    const alreadySelected = rfq.quotations.some((q: any) => q.status === QuotationStatus.SELECTED);
+    if (alreadySelected) {
+      res.status(409).json({
+        success: false,
+        message: 'A winning quotation has already been selected for this RFQ.',
+      });
+      return;
+    }
+
+    if (rfq.purchaseRequest.status !== PrStatus.RFQ_CREATED) {
+      res.status(400).json({
+        success: false,
+        message: `Purchase request is not in a valid state for vendor selection. Current PR status: ${rfq.purchaseRequest.status}.`,
+      });
       return;
     }
 
@@ -439,7 +530,7 @@ export async function selectQuotation(
           status: QuotationStatus.SELECTED as string,
           selectionReason: selectionReason?.trim() || null,
         },
-        include: { vendor: true },
+        include: { vendor: true, items: true },
       });
 
       await tx.quotation.updateMany({

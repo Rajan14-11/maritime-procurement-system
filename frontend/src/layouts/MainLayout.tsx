@@ -31,15 +31,21 @@ export const MainLayout: React.FC = () => {
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
 
   useEffect(() => {
+    let isMounted = true;
     // Fetch pending count for badges
     if (user?.role === 'APPROVER' || user?.role === 'ADMIN') {
       approvalsApi
         .getPending()
         .then((res) => {
-          setPendingApprovalsCount(res.totalPending || 0);
+          if (isMounted) {
+            setPendingApprovalsCount(res.totalPending || 0);
+          }
         })
         .catch(() => {});
     }
+    return () => {
+      isMounted = false;
+    };
   }, [location.pathname, user]);
 
   const navigation = [

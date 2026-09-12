@@ -11,7 +11,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "node prisma/seed.cjs",
-    "test": "node dist/tests/workflow.test.js"
+    "test": "node dist/tests/run-all.js"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

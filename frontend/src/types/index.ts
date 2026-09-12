@@ -135,6 +135,18 @@ export interface RfqVendor {
   vendor: Vendor;
 }
 
+export interface QuotationItem {
+  id?: string;
+  quotationId?: string;
+  purchaseRequestItemId?: string | null;
+  itemName: string;
+  description?: string | null;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  total: number;
+}
+
 export interface Quotation {
   id: string;
   rfqId: string;
@@ -148,6 +160,7 @@ export interface Quotation {
   notes?: string | null;
   status: QuotationStatus;
   selectionReason?: string | null;
+  items?: QuotationItem[];
   createdAt: string;
   updatedAt: string;
 }

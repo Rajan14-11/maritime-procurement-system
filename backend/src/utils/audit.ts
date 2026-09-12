@@ -32,6 +32,9 @@ export async function logAudit(
     });
   } catch (error) {
     console.error('Failed to write audit log:', error);
-    // Audit log failure shouldn't necessarily crash non-critical paths, but will be logged
+    // In a transaction, an audit failure MUST propagate so the business mutation rolls back
+    if (tx) {
+      throw error;
+    }
   }
 }
