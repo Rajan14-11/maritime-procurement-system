@@ -140,6 +140,25 @@ async function runAdversarialTests() {
       `Got status ${officerApproveRes.status}`
     );
 
+    // --- TEST 2b: Procurement Officer cannot create PR (HTTP 403) ---
+    const officerCreatePrRes = await api('/api/purchase-requests', {
+      method: 'POST',
+      token: officerToken,
+      body: {
+        vesselId: vessel.id,
+        department: 'Engine',
+        priority: 'MEDIUM',
+        requiredDate: new Date(Date.now() + 10 * 86400000).toISOString(),
+        reason: 'Unauthorized officer PR creation attempt',
+        items: [{ itemName: 'Unauthorized Part', quantity: 1, estimatedUnitPrice: 100 }],
+      },
+    });
+    assert(
+      officerCreatePrRes.status === 403,
+      '2b. Procurement Officer cannot create PR (HTTP 403 returned)',
+      `Got status ${officerCreatePrRes.status}: ${officerCreatePrRes.data?.message}`
+    );
+
     // --- TEST 3: User cannot submit another user\'s draft PR (HTTP 403) ---
     const draftPrRes = await api('/api/purchase-requests', {
       method: 'POST',

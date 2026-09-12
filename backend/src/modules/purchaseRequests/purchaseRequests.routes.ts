@@ -17,9 +17,21 @@ router.use(authenticateToken);
 
 router.get('/', listPurchaseRequests);
 router.get('/:id', getPurchaseRequestById);
-router.post('/', createPurchaseRequest);
-router.patch('/:id', updatePurchaseRequest);
-router.post('/:id/submit', submitPurchaseRequest);
+router.post(
+  '/',
+  requireRole(UserRole.REQUESTER, UserRole.ADMIN),
+  createPurchaseRequest
+);
+router.patch(
+  '/:id',
+  requireRole(UserRole.REQUESTER, UserRole.ADMIN),
+  updatePurchaseRequest
+);
+router.post(
+  '/:id/submit',
+  requireRole(UserRole.REQUESTER, UserRole.ADMIN),
+  submitPurchaseRequest
+);
 router.post(
   '/:id/approve',
   requireRole(UserRole.APPROVER, UserRole.ADMIN),

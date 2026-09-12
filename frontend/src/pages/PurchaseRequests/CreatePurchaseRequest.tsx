@@ -134,6 +134,10 @@ export const CreatePurchaseRequest: React.FC = () => {
     setError(null);
 
     // Validation
+    if (user?.role !== 'REQUESTER' && user?.role !== 'ADMIN') {
+      setError('Only vessel Requesters (Chief Engineers) and Fleet Admins are authorized to create purchase requests.');
+      return;
+    }
     if (user?.role === 'REQUESTER' && !user.vesselId) {
       setError('Your account is not assigned to a vessel. Only assigned requesters can create purchase requests.');
       return;
@@ -195,6 +199,29 @@ export const CreatePurchaseRequest: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (user?.role !== 'REQUESTER' && user?.role !== 'ADMIN') {
+    return (
+      <div className="max-w-2xl mx-auto py-16 text-center space-y-4">
+        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-600">
+          <Lock className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900">Access Restricted</h2>
+        <p className="text-xs text-slate-600 max-w-md mx-auto">
+          In accordance with maritime separation of duties, Purchase Requests must be initiated by assigned vessel Requesters (Chief Engineers) or Fleet Administrators.
+        </p>
+        <div className="pt-2">
+          <Link
+            to="/purchase-requests"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Purchase Requests</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

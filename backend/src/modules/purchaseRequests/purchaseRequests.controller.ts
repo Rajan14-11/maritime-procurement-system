@@ -182,6 +182,14 @@ export async function createPurchaseRequest(
       submitImmediately = true,
     } = req.body;
 
+    if (req.user?.role !== UserRole.REQUESTER && req.user?.role !== UserRole.ADMIN) {
+      res.status(403).json({
+        success: false,
+        message: 'Only vessel Requesters (Chief Engineers) and Fleet Admins are authorized to create purchase requests.',
+      });
+      return;
+    }
+
     let targetVesselId = vesselId;
 
     if (req.user?.role === UserRole.REQUESTER) {
@@ -622,6 +630,14 @@ export async function updatePurchaseRequest(
 
     if (!pr) {
       res.status(404).json({ success: false, message: 'Purchase request not found.' });
+      return;
+    }
+
+    if (req.user?.role !== UserRole.REQUESTER && req.user?.role !== UserRole.ADMIN) {
+      res.status(403).json({
+        success: false,
+        message: 'Only vessel Requesters (Chief Engineers) and Fleet Admins are authorized to edit purchase requests.',
+      });
       return;
     }
 

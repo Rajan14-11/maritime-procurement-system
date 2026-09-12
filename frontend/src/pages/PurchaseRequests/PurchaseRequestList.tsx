@@ -17,8 +17,11 @@ import { PurchaseRequest, Vessel, PrStatus, PrPriority } from '../../types/index
 import { StatusBadge } from '../../components/StatusBadge.js';
 import { PriorityBadge } from '../../components/PriorityBadge.js';
 import { Card } from '../../components/Card.js';
+import { useAuth } from '../../context/AuthContext.js';
 
 export const PurchaseRequestList: React.FC = () => {
+  const { user } = useAuth();
+  const canCreatePr = user?.role === 'REQUESTER' || user?.role === 'ADMIN';
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,13 +86,15 @@ export const PurchaseRequestList: React.FC = () => {
             Material and technical spare parts demands initiated for fleet operations
           </p>
         </div>
-        <Link
-          to="/purchase-requests/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Purchase Request</span>
-        </Link>
+        {canCreatePr && (
+          <Link
+            to="/purchase-requests/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Purchase Request</span>
+          </Link>
+        )}
       </div>
 
       {/* Filter and Search Bar */}
