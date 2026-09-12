@@ -187,6 +187,38 @@ async function runAdversarialTests() {
       `Got status ${otherSubmitRes.status}: ${otherSubmitRes.data.message}`
     );
 
+    // --- TEST 3b: Approver and Officer cannot see draft PRs in list ---
+    const approverPrListRes = await api('/api/purchase-requests', {
+      token: approverToken,
+    });
+    const approverPrs: any[] = approverPrListRes.data?.data?.purchaseRequests || [];
+    const approverSeesDraft = approverPrs.some((p) => p.id === draftPrId || p.status === 'DRAFT');
+    assert(
+      !approverSeesDraft,
+      '3b. Approver cannot see unsubmitted DRAFT PRs in purchase requests list',
+      `Found draft PR in approver list: ${approverSeesDraft}`
+    );
+
+    // --- TEST 3c: Approver cannot access draft PR details directly (HTTP 403) ---
+    const approverDraftDetailRes = await api(`/api/purchase-requests/${draftPrId}`, {
+      token: approverToken,
+    });
+    assert(
+      approverDraftDetailRes.status === 403,
+      "3c. Approver cannot view another user's draft PR details (HTTP 403 returned)",
+      `Got status ${approverDraftDetailRes.status}: ${approverDraftDetailRes.data?.message}`
+    );
+
+    // --- TEST 3d: Authoring Requester CAN access their own draft PR details ---
+    const requesterDraftDetailRes = await api(`/api/purchase-requests/${draftPrId}`, {
+      token: requesterToken,
+    });
+    assert(
+      requesterDraftDetailRes.status === 200 && requesterDraftDetailRes.data?.data?.purchaseRequest?.id === draftPrId,
+      '3d. Creating requester can view their own draft PR details (HTTP 200 returned)',
+      `Got status ${requesterDraftDetailRes.status}`
+    );
+
     // --- TEST 4: Cannot create RFQ from non-approved PR (HTTP 400) ---
     console.log('\n--- Category 2: Procurement State Machine Guards ---');
     const invalidRfqRes = await api('/api/rfqs', {

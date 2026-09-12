@@ -356,6 +356,12 @@ async function runVesselScopedAccessTests() {
       `Total vessels seen: ${officerVesselsRes.data.data?.vessels?.length}`
     );
 
+    // Submit Requester 1's PR so it enters PENDING_APPROVAL and is visible to fleet officers
+    await api(`/api/purchase-requests/${createdPr.id}/submit`, {
+      method: 'POST',
+      token: requester1Token,
+    });
+
     // Procurement Officer can view Requester 1's PR
     const officerPrRes = await api(`/api/purchase-requests/${createdPr.id}`, {
       method: 'GET',

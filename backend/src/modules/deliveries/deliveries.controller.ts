@@ -108,13 +108,14 @@ export async function recordGoodsReceipt(
       receiptDate = parsed;
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Concurrency & Race Protection: Pessimistic row-level lock on the PO row in PostgreSQL
-      try {
-        await tx.$queryRawUnsafe(`SELECT id FROM purchase_orders WHERE id = $1 FOR UPDATE`, id);
-      } catch {
-        // Safe fallback for engines without FOR UPDATE support
-      }
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // Concurrency & Race Protection: Pessimistic row-level lock on the PO row in PostgreSQL
+        try {
+          await tx.$queryRawUnsafe(`SELECT id FROM purchase_orders WHERE id = $1 FOR UPDATE`, id);
+        } catch {
+          // Safe fallback for engines without FOR UPDATE support
+        }
 
       // Fetch PO and its line items inside the serialized transaction
       const po = await tx.purchaseOrder.findUnique({
@@ -262,7 +263,7 @@ export async function recordGoodsReceipt(
       }
 
       return { gr, newPoStatus, isFullyReceived };
-    });
+    }, { maxWait: 15000, timeout: 30000 });
 
     res.status(201).json({
       success: true,

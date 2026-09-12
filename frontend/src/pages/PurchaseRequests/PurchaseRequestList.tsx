@@ -119,7 +119,7 @@ export const PurchaseRequestList: React.FC = () => {
               className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-600"
             >
               <option value="">All Statuses</option>
-              <option value="DRAFT">Draft</option>
+              {canCreatePr && <option value="DRAFT">Draft</option>}
               <option value="PENDING_APPROVAL">Pending Approval</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>

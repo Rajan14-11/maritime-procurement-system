@@ -9,10 +9,16 @@ export async function getDashboardSummary(
 ): Promise<void> {
   try {
     const isRequester = req.user?.role === UserRole.REQUESTER;
+    const isApproverOrOfficer =
+      req.user?.role === UserRole.APPROVER || req.user?.role === UserRole.PROCUREMENT_OFFICER;
     const userId = req.user?.id;
 
-    // Build role-scoped filters
-    const prScope = isRequester && userId ? { requesterId: userId } : {};
+    // Build role-scoped filters: Requesters only see their own PRs; Approvers/Officers only see submitted demands (no drafts)
+    const prScope = isRequester && userId
+      ? { requesterId: userId }
+      : isApproverOrOfficer
+      ? { status: { not: PrStatus.DRAFT } }
+      : {};
     const poScope = isRequester && userId ? { purchaseRequest: { requesterId: userId } } : {};
     const rfqScope = isRequester && userId ? { purchaseRequest: { requesterId: userId } } : {};
 

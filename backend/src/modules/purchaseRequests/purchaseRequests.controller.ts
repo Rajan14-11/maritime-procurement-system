@@ -43,7 +43,19 @@ export async function listPurchaseRequests(
       ];
     }
 
-    if (status && Object.values(PrStatus).includes(status as PrStatus)) {
+    const isApproverOrOfficer =
+      req.user?.role === UserRole.APPROVER || req.user?.role === UserRole.PROCUREMENT_OFFICER;
+
+    if (isApproverOrOfficer) {
+      // Approvers and Procurement Officers only see submitted demands, never unsubmitted DRAFTs
+      if (status && status !== PrStatus.DRAFT && Object.values(PrStatus).includes(status as PrStatus)) {
+        where.status = status as string;
+      } else if (status === PrStatus.DRAFT) {
+        where.status = '__no_drafts_allowed__';
+      } else {
+        where.status = { not: PrStatus.DRAFT };
+      }
+    } else if (status && Object.values(PrStatus).includes(status as PrStatus)) {
       where.status = status as string;
     }
 
@@ -135,6 +147,14 @@ export async function getPurchaseRequestById(
       res.status(403).json({
         success: false,
         message: 'You are not authorized to view this purchase request.',
+      });
+      return;
+    }
+
+    if (pr.status === PrStatus.DRAFT && req.user?.role !== UserRole.ADMIN && pr.requesterId !== req.user?.id) {
+      res.status(403).json({
+        success: false,
+        message: 'Draft purchase requests can only be viewed by the creating requester.',
       });
       return;
     }
