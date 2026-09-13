@@ -61,6 +61,20 @@ export const Login: React.FC = () => {
       desc: 'Manages master fleet, user directory & system audit logs',
       badge: 'bg-purple-50 text-purple-800 border-purple-200',
     },
+    {
+      role: 'MarineParts Ltd.',
+      title: 'Vendor Portal',
+      email: 'vendor.marineparts@demo.com',
+      desc: 'Blind tender quoting, PO acknowledgment & dispatch logistics',
+      badge: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+    },
+    {
+      role: 'OceanSupply Co.',
+      title: 'Vendor Portal',
+      email: 'vendor.oceansupply@demo.com',
+      desc: 'Blind tender quoting, PO acknowledgment & dispatch logistics',
+      badge: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+    },
   ];
 
   return (

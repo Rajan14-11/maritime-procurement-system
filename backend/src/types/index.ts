@@ -43,6 +43,13 @@ export interface AuthUser {
     imoNumber: string;
     status: VesselStatus;
   } | null;
+  vendorId?: string | null;
+  vendor?: {
+    id: string;
+    vendorCode: string;
+    name: string;
+    status: VendorStatus;
+  } | null;
 }
 
 export interface AuthenticatedRequest extends Request {

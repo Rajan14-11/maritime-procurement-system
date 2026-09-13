@@ -8,6 +8,144 @@ export async function getDashboardSummary(
   next: NextFunction
 ): Promise<void> {
   try {
+    if (req.user?.role === UserRole.VENDOR) {
+      const vendorId = req.user.vendorId;
+      if (!vendorId) {
+        res.json({
+          success: true,
+          data: {
+            kpis: {
+              openRfqs: 0,
+              submittedQuotes: 0,
+              activePos: 0,
+              pendingDispatches: 0,
+              completedDeliveries: 0,
+              totalSpend: 0,
+            },
+            recentRfqs: [],
+            recentOrders: [],
+            recentActivity: [],
+          },
+        });
+        return;
+      }
+
+      const [
+        openRfqsCount,
+        submittedQuotesCount,
+        activePosCount,
+        pendingDispatchesCount,
+        completedDeliveriesCount,
+        awardedSpendResult,
+        recentRfqs,
+        recentOrders,
+        recentActivity,
+      ] = await Promise.all([
+        prisma.rfq.count({
+          where: {
+            status: RfqStatus.OPEN,
+            rfqVendors: { some: { vendorId } },
+          },
+        }),
+        prisma.quotation.count({
+          where: { vendorId },
+        }),
+        prisma.purchaseOrder.count({
+          where: {
+            vendorId,
+            status: { in: [PoStatus.ORDERED, PoStatus.PARTIALLY_RECEIVED] },
+          },
+        }),
+        prisma.purchaseOrder.count({
+          where: {
+            vendorId,
+            status: PoStatus.ORDERED,
+            dispatchedAt: null,
+          },
+        }),
+        prisma.purchaseOrder.count({
+          where: {
+            vendorId,
+            status: { in: [PoStatus.RECEIVED, PoStatus.COMPLETED] },
+          },
+        }),
+        prisma.purchaseOrder.aggregate({
+          _sum: { total: true },
+          where: {
+            vendorId,
+            status: {
+              in: [
+                PoStatus.ORDERED,
+                PoStatus.PARTIALLY_RECEIVED,
+                PoStatus.RECEIVED,
+                PoStatus.COMPLETED,
+              ],
+            },
+          },
+        }),
+        prisma.rfq.findMany({
+          where: { rfqVendors: { some: { vendorId } } },
+          take: 6,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            purchaseRequest: {
+              include: { vessel: true, items: true },
+            },
+            quotations: {
+              where: { vendorId },
+              include: { vendor: true },
+            },
+          },
+        }),
+        prisma.purchaseOrder.findMany({
+          where: {
+            vendorId,
+            status: {
+              in: [
+                PoStatus.ORDERED,
+                PoStatus.PARTIALLY_RECEIVED,
+                PoStatus.RECEIVED,
+                PoStatus.COMPLETED,
+              ],
+            },
+          },
+          take: 6,
+          orderBy: { createdAt: 'desc' },
+          include: { vessel: true, items: true },
+        }),
+        prisma.auditLog.findMany({
+          where: {
+            OR: [
+              { userId: req.user.id },
+              ...(req.user.vendor?.name
+                ? [{ description: { contains: req.user.vendor.name } }]
+                : []),
+            ],
+          },
+          take: 8,
+          orderBy: { timestamp: 'desc' },
+        }),
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          kpis: {
+            openRfqs: openRfqsCount,
+            submittedQuotes: submittedQuotesCount,
+            activePos: activePosCount,
+            pendingDispatches: pendingDispatchesCount,
+            completedDeliveries: completedDeliveriesCount,
+            totalSpend: Number(awardedSpendResult._sum?.total || 0),
+          },
+          recentRfqs,
+          recentOrders,
+          recentActivity,
+        },
+      });
+      return;
+    }
+
     const isRequester = req.user?.role === UserRole.REQUESTER;
     const isApproverOrOfficer =
       req.user?.role === UserRole.APPROVER || req.user?.role === UserRole.PROCUREMENT_OFFICER;

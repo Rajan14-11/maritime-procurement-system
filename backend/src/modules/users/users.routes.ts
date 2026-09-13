@@ -9,7 +9,7 @@ router.use(authenticateToken);
 
 router.get('/', listUsers);
 router.get('/:id', getUserById);
-router.post('/', requireRole(UserRole.ADMIN), createUser);
-router.patch('/:id', requireRole(UserRole.ADMIN), updateUser);
+router.post('/', requireRole(UserRole.ADMIN, UserRole.PROCUREMENT_OFFICER), createUser);
+router.patch('/:id', requireRole(UserRole.ADMIN, UserRole.PROCUREMENT_OFFICER), updateUser);
 
 export default router;

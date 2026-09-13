@@ -77,7 +77,17 @@ export const Dashboard: React.FC = () => {
 
   const { kpis, recentPurchaseRequests, pendingApprovals, recentActivity } = data;
 
-  const getRoleStatCards = () => {
+  interface StatCard {
+    title: string;
+    value: number | string | undefined;
+    icon: any;
+    color: string;
+    href: string;
+    alert?: boolean;
+    subtitle?: string;
+  }
+
+  const getRoleStatCards = (): StatCard[] => {
     switch (user?.role) {
       case 'PROCUREMENT_OFFICER':
         return [
@@ -177,7 +187,7 @@ export const Dashboard: React.FC = () => {
             icon: Clock,
             color: 'text-amber-600 bg-amber-50 border-amber-100',
             href: '/approvals',
-            alert: kpis.pendingApprovals > 0,
+            alert: (kpis.pendingApprovals ?? 0) > 0,
           },
           {
             title: 'Fleet Demands',
@@ -216,6 +226,56 @@ export const Dashboard: React.FC = () => {
           },
         ];
 
+      case 'VENDOR':
+        return [
+          {
+            title: 'Open Tenders',
+            value: kpis.openRfqs,
+            icon: Layers,
+            color: 'text-sky-600 bg-sky-50 border-sky-100',
+            href: '/vendor/rfqs',
+            alert: kpis.openRfqs > 0,
+            subtitle: kpis.openRfqs > 0 ? 'Bids invited' : undefined,
+          },
+          {
+            title: 'Submitted Bids',
+            value: kpis.submittedQuotes ?? 0,
+            icon: FileText,
+            color: 'text-blue-600 bg-blue-50 border-blue-100',
+            href: '/vendor/rfqs',
+          },
+          {
+            title: 'Awarded Orders',
+            value: kpis.activePos,
+            icon: ShoppingCart,
+            color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+            href: '/vendor/purchase-orders',
+          },
+          {
+            title: 'Pending Dispatches',
+            value: kpis.pendingDispatches ?? 0,
+            icon: Truck,
+            color: 'text-orange-600 bg-orange-50 border-orange-100',
+            href: '/vendor/purchase-orders',
+            alert: (kpis.pendingDispatches ?? 0) > 0,
+            subtitle: (kpis.pendingDispatches ?? 0) > 0 ? 'Action required' : undefined,
+          },
+          {
+            title: 'Delivered Orders',
+            value: kpis.completedDeliveries ?? 0,
+            icon: CheckCircle2,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/vendor/deliveries',
+          },
+          {
+            title: 'Awarded Value',
+            value: `₹${(kpis.totalSpend || 0).toLocaleString()}`,
+            icon: DollarSign,
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+            href: '/vendor/purchase-orders',
+          },
+        ];
+
       case 'ADMIN':
       default:
         return [
@@ -232,7 +292,7 @@ export const Dashboard: React.FC = () => {
             icon: Clock,
             color: 'text-amber-600 bg-amber-50 border-amber-100',
             href: '/approvals',
-            alert: kpis.pendingApprovals > 0,
+            alert: (kpis.pendingApprovals ?? 0) > 0,
           },
           {
             title: 'Open RFQs',
@@ -308,6 +368,15 @@ export const Dashboard: React.FC = () => {
               <span>Approvals Queue</span>
             </Link>
           )}
+          {user?.role === 'VENDOR' && (
+            <Link
+              to="/vendor/rfqs"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Open Tender Invitations</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -347,73 +416,209 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Main Grid: Approvals Queue + Recent Requests */}
+      {/* Main Grid: Workflows + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Recent Purchase Requests */}
+        {/* Left 2 Cols: Main Operations Panels */}
         <div className="lg:col-span-2 space-y-6">
-          <Card
-            title="Recent Purchase Requests"
-            subtitle="Latest requirements raised across active vessels"
-            action={
-              <Link
-                to="/purchase-requests"
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          {user?.role === 'VENDOR' ? (
+            <>
+              {/* Vendor Active Tender Invitations */}
+              <Card
+                title="Active Tender Invitations"
+                subtitle="RFQs requesting your quotation pricing"
+                action={
+                  <Link
+                    to="/vendor/rfqs"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <span>View all tenders</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                }
               >
-                <span>View all</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            }
-          >
-            {recentPurchaseRequests.length === 0 ? (
-              <div className="text-center py-8 text-xs text-slate-500">
-                No purchase requests raised yet.
-              </div>
-            ) : (
-              <div className="overflow-x-auto -mx-6 -my-6">
-                <table className="min-w-full divide-y divide-slate-100 text-left text-xs">
-                  <thead className="bg-slate-50/60 font-semibold text-slate-600">
-                    <tr>
-                      <th className="py-3 px-6">PR Number</th>
-                      <th className="py-3 px-4">Vessel</th>
-                      <th className="py-3 px-4">Department</th>
-                      <th className="py-3 px-4">Est. Total</th>
-                      <th className="py-3 px-4">Priority</th>
-                      <th className="py-3 px-6">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-700">
-                    {recentPurchaseRequests.map((pr) => (
-                      <tr
-                        key={pr.id}
-                        className="hover:bg-slate-50/50 transition-colors cursor-pointer"
-                        onClick={() => window.location.href = `/purchase-requests/${pr.id}`}
+                {(!data.recentRfqs || data.recentRfqs.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-500">
+                    No active tender invitations at this time.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {data.recentRfqs.map((rfq: any) => {
+                      const myQuote = rfq.quotations?.[0];
+                      const isExpired = new Date(rfq.deadline) < new Date();
+                      return (
+                        <div
+                          key={rfq.id}
+                          className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors px-2 rounded-lg"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-blue-600">{rfq.rfqNumber}</span>
+                              <span className="text-[11px] text-slate-500">
+                                • {rfq.purchaseRequest?.vessel?.name} ({rfq.purchaseRequest?.department})
+                              </span>
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                isExpired ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'
+                              }`}>
+                                {isExpired ? 'Deadline Passed' : `Deadline: ${new Date(rfq.deadline).toLocaleDateString()}`}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600">
+                              {rfq.purchaseRequest?.items?.length || 0} item(s) requested: {rfq.purchaseRequest?.items?.map((i: any) => i.itemName).slice(0, 2).join(', ')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 self-end sm:self-auto">
+                            {myQuote ? (
+                              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Quote Submitted (₹{Number(myQuote.totalPrice).toLocaleString()})</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold text-amber-600">
+                                Pending Submission
+                              </span>
+                            )}
+                            <Link
+                              to="/vendor/rfqs"
+                              className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-xs font-semibold transition-colors"
+                            >
+                              {myQuote ? 'Review Quote' : 'Submit Bid'} &rarr;
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+
+              {/* Vendor Awarded Orders Awaiting Fulfillment */}
+              <Card
+                title="Awarded Purchase Orders"
+                subtitle="Orders issued to your company for fulfillment and delivery"
+                action={
+                  <Link
+                    to="/vendor/purchase-orders"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <span>View all orders</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                }
+              >
+                {(!data.recentOrders || data.recentOrders.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-500">
+                    No active purchase orders currently awarded.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {data.recentOrders.map((po: any) => (
+                      <div
+                        key={po.id}
+                        className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors px-2 rounded-lg"
                       >
-                        <td className="py-3 px-6 font-semibold text-blue-600">
-                          {pr.prNumber}
-                        </td>
-                        <td className="py-3 px-4 font-medium text-slate-900">
-                          {pr.vessel?.name}
-                        </td>
-                        <td className="py-3 px-4 text-slate-500">{pr.department}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-900">
-                          ₹{pr.estimatedTotal?.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <PriorityBadge priority={pr.priority} />
-                        </td>
-                        <td className="py-3 px-6">
-                          <StatusBadge status={pr.status} size="sm" />
-                        </td>
-                      </tr>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-900">{po.poNumber}</span>
+                            <span className="text-[11px] text-slate-500">
+                              • Vessel: {po.vessel?.name}
+                            </span>
+                            <span className="text-xs font-bold text-emerald-600">
+                              ₹{Number(po.total).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px]">
+                            <span className="text-slate-500">
+                              Required: {new Date(po.deliveryDate).toLocaleDateString()}
+                            </span>
+                            {po.acknowledgedAt ? (
+                              <span className="text-emerald-700 font-medium">✓ Acknowledged</span>
+                            ) : (
+                              <span className="text-amber-700 font-medium">⚠ Acknowledgment Pending</span>
+                            )}
+                            {po.dispatchedAt && (
+                              <span className="text-blue-700 font-medium">🚚 Dispatched ({po.carrierName})</span>
+                            )}
+                          </div>
+                        </div>
+                        <Link
+                          to="/vendor/purchase-orders"
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded text-xs font-semibold transition-colors self-end sm:self-auto"
+                        >
+                          Manage Fulfillment &rarr;
+                        </Link>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+                  </div>
+                )}
+              </Card>
+            </>
+          ) : (
+            <>
+              <Card
+                title="Recent Purchase Requests"
+                subtitle="Latest requirements raised across active vessels"
+                action={
+                  <Link
+                    to="/purchase-requests"
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <span>View all</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                }
+              >
+                {(recentPurchaseRequests || []).length === 0 ? (
+                  <div className="text-center py-8 text-xs text-slate-500">
+                    No purchase requests raised yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto -mx-6 -my-6">
+                    <table className="min-w-full divide-y divide-slate-100 text-left text-xs">
+                      <thead className="bg-slate-50/60 font-semibold text-slate-600">
+                        <tr>
+                          <th className="py-3 px-6">PR Number</th>
+                          <th className="py-3 px-4">Vessel</th>
+                          <th className="py-3 px-4">Department</th>
+                          <th className="py-3 px-4">Est. Total</th>
+                          <th className="py-3 px-4">Priority</th>
+                          <th className="py-3 px-6">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {(recentPurchaseRequests || []).map((pr) => (
+                          <tr
+                            key={pr.id}
+                            className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                            onClick={() => window.location.href = `/purchase-requests/${pr.id}`}
+                          >
+                            <td className="py-3 px-6 font-semibold text-blue-600">
+                              {pr.prNumber}
+                            </td>
+                            <td className="py-3 px-4 font-medium text-slate-900">
+                              {pr.vessel?.name}
+                            </td>
+                            <td className="py-3 px-4 text-slate-500">{pr.department}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-900">
+                              ₹{pr.estimatedTotal?.toLocaleString()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <PriorityBadge priority={pr.priority} />
+                            </td>
+                            <td className="py-3 px-6">
+                              <StatusBadge status={pr.status} size="sm" />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
 
           {/* Pending Approvals Widget for Approvers */}
-          {(user?.role === 'APPROVER' || user?.role === 'ADMIN') && (
+          {(user?.role === 'APPROVER' || user?.role === 'ADMIN') && pendingApprovals && (
             <Card
               title={
                 <div className="flex items-center gap-2 text-amber-800">
@@ -512,7 +717,7 @@ export const Dashboard: React.FC = () => {
             title="Procurement Activity Trail"
             subtitle="Real-time chronological events from database"
             action={
-              user?.role !== 'REQUESTER' ? (
+              user?.role !== 'REQUESTER' && user?.role !== 'VENDOR' ? (
                 <Link
                   to="/audit-logs"
                   className="text-xs font-semibold text-blue-600 hover:text-blue-700"

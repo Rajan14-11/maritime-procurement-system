@@ -5,6 +5,8 @@ import {
   createPurchaseOrder,
   approvePurchaseOrder,
   rejectPurchaseOrder,
+  acknowledgePurchaseOrder,
+  dispatchPurchaseOrder,
 } from './purchaseOrders.controller.js';
 import { authenticateToken, requireRole } from '../../middleware/auth.js';
 import { UserRole } from '../../types/index.js';
@@ -29,6 +31,16 @@ router.post(
   '/:id/reject',
   requireRole(UserRole.APPROVER, UserRole.ADMIN),
   rejectPurchaseOrder
+);
+router.post(
+  '/:id/acknowledge',
+  requireRole(UserRole.VENDOR, UserRole.PROCUREMENT_OFFICER, UserRole.ADMIN),
+  acknowledgePurchaseOrder
+);
+router.post(
+  '/:id/dispatch',
+  requireRole(UserRole.VENDOR, UserRole.PROCUREMENT_OFFICER, UserRole.ADMIN),
+  dispatchPurchaseOrder
 );
 
 export default router;

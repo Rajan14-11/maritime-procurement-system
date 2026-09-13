@@ -19,6 +19,10 @@ import { VendorsList } from './pages/Vendors/VendorsList.js';
 import { VesselsList } from './pages/MasterData/VesselsList.js';
 import { UsersList } from './pages/MasterData/UsersList.js';
 import { AuditLogsList } from './pages/AuditLogs/AuditLogsList.js';
+import { VendorRfqList } from './pages/Vendor/VendorRfqList.js';
+import { VendorPoList } from './pages/Vendor/VendorPoList.js';
+import { VendorDeliveriesList } from './pages/Vendor/VendorDeliveriesList.js';
+import { VendorProfile } from './pages/Vendor/VendorProfile.js';
 import { UserRole } from './types/index.js';
 
 interface ProtectedRouteProps {
@@ -146,11 +150,11 @@ export const App: React.FC = () => {
             {/* Vessels Fleet */}
             <Route path="vessels" element={<VesselsList />} />
 
-            {/* Admin User Management */}
+            {/* User Management */}
             <Route
               path="users"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'PROCUREMENT_OFFICER']}>
                   <UsersList />
                 </ProtectedRoute>
               }
@@ -162,6 +166,40 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute allowedRoles={['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER']}>
                   <AuditLogsList />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Vendor Portal Routes */}
+            <Route
+              path="vendor/rfqs"
+              element={
+                <ProtectedRoute allowedRoles={['VENDOR']}>
+                  <VendorRfqList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="vendor/purchase-orders"
+              element={
+                <ProtectedRoute allowedRoles={['VENDOR']}>
+                  <VendorPoList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="vendor/deliveries"
+              element={
+                <ProtectedRoute allowedRoles={['VENDOR']}>
+                  <VendorDeliveriesList />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="vendor/profile"
+              element={
+                <ProtectedRoute allowedRoles={['VENDOR']}>
+                  <VendorProfile />
                 </ProtectedRoute>
               }
             />

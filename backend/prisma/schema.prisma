@@ -13,6 +13,7 @@ enum UserRole {
   PROCUREMENT_OFFICER
   APPROVER
   ADMIN
+  VENDOR
 }
 
 enum UserStatus {
@@ -97,6 +98,8 @@ model User {
   status       UserStatus @default(ACTIVE)
   vesselId     String?
   vessel       Vessel?    @relation("UserAssignedVessel", fields: [vesselId], references: [id])
+  vendorId     String?
+  vendor       Vendor?    @relation("UserAssignedVendor", fields: [vendorId], references: [id])
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -140,6 +143,7 @@ model Vendor {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
+  assignedUsers  User[]          @relation("UserAssignedVendor")
   rfqVendors     RfqVendor[]
   quotations     Quotation[]
   purchaseOrders PurchaseOrder[]
@@ -248,6 +252,7 @@ model Quotation {
   notes           String?
   status          QuotationStatus @default(RECEIVED)
   selectionReason String?
+  submittedById   String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -295,10 +300,17 @@ model PurchaseOrder {
   deliveryDate      DateTime
   paymentTerms      String          @default("30 Days")
   status            PoStatus        @default(PENDING_APPROVAL)
-  createdById       String
-  createdBy         User            @relation("UserCreatedPOs", fields: [createdById], references: [id])
-  rejectionReason   String?
-  createdAt         DateTime        @default(now())
+  createdById           String
+  createdBy             User                @relation("UserCreatedPOs", fields: [createdById], references: [id])
+  rejectionReason       String?
+  acknowledgedAt        DateTime?
+  acknowledgedById      String?
+  carrierName           String?
+  trackingNumber        String?
+  dispatchedAt          DateTime?
+  dispatchNotes         String?
+  estimatedDeliveryDate DateTime?
+  createdAt             DateTime            @default(now())
   updatedAt         DateTime        @updatedAt
 
   items         PurchaseOrderItem[]

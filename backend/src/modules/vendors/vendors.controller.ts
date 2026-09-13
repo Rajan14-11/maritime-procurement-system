@@ -185,3 +185,91 @@ export async function updateVendor(
     next(error);
   }
 }
+
+export async function getMyVendorProfile(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const vendorId = req.user?.vendorId;
+    if (!vendorId) {
+      res.status(403).json({ success: false, message: 'No vendor company linked to your account.' });
+      return;
+    }
+
+    const vendor = await prisma.vendor.findUnique({
+      where: { id: vendorId },
+      include: {
+        assignedUsers: {
+          select: { id: true, name: true, email: true, status: true },
+        },
+        quotations: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          include: { rfq: { select: { rfqNumber: true, status: true, deadline: true } } },
+        },
+        purchaseOrders: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, poNumber: true, total: true, status: true, deliveryDate: true, acknowledgedAt: true, dispatchedAt: true },
+        },
+      },
+    });
+
+    if (!vendor) {
+      res.status(404).json({ success: false, message: 'Vendor record not found.' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: { vendor },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMyVendorProfile(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const vendorId = req.user?.vendorId;
+    if (!vendorId) {
+      res.status(403).json({ success: false, message: 'No vendor company linked to your account.' });
+      return;
+    }
+
+    const { contactPerson, phone, address } = req.body;
+    const updateData: any = {};
+    if (contactPerson) updateData.contactPerson = contactPerson.trim();
+    if (phone !== undefined) updateData.phone = phone.trim();
+    if (address !== undefined) updateData.address = address.trim();
+
+    const updated = await prisma.vendor.update({
+      where: { id: vendorId },
+      data: updateData,
+    });
+
+    await logAudit({
+      userId: req.user?.id,
+      userName: req.user?.name || updated.name,
+      userRole: req.user?.role || 'VENDOR',
+      action: 'UPDATE_VENDOR_PROFILE',
+      entityType: 'VENDOR',
+      entityId: updated.id,
+      description: `Vendor ${updated.name} updated company contact profile details.`,
+    });
+
+    res.json({
+      success: true,
+      message: 'Company profile updated successfully.',
+      data: { vendor: updated },
+    });
+  } catch (error) {
+    next(error);
+  }
+}

@@ -31,7 +31,25 @@ export async function listPurchaseOrders(
     if (status && Object.values(PoStatus).includes(status as PoStatus)) {
       where.status = status as string;
     }
-    if (vendorId) {
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    const vendorIdFromUser = req.user?.vendorId;
+
+    if (isVendor) {
+      if (!vendorIdFromUser) {
+        res.json({ success: true, data: { purchaseOrders: [] } });
+        return;
+      }
+      where.vendorId = vendorIdFromUser;
+      // Vendors only see awarded/issued orders, never unapproved drafts
+      where.status = {
+        in: [
+          PoStatus.ORDERED,
+          PoStatus.PARTIALLY_RECEIVED,
+          PoStatus.RECEIVED,
+          PoStatus.COMPLETED,
+        ],
+      };
+    } else if (vendorId) {
       where.vendorId = String(vendorId);
     }
     if (vesselId) {
@@ -121,6 +139,20 @@ export async function getPurchaseOrderById(
     if (!po) {
       res.status(404).json({ success: false, message: 'Purchase order not found.' });
       return;
+    }
+
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    const vendorIdFromUser = req.user?.vendorId;
+
+    if (isVendor) {
+      if (!vendorIdFromUser || po.vendorId !== vendorIdFromUser) {
+        res.status(403).json({ success: false, message: 'Access denied. This purchase order does not belong to your company.' });
+        return;
+      }
+      if (po.status === PoStatus.DRAFT || po.status === PoStatus.PENDING_APPROVAL) {
+        res.status(403).json({ success: false, message: 'Access denied. This purchase order is not yet released.' });
+        return;
+      }
     }
 
     const auditLogs = await prisma.auditLog.findMany({
@@ -511,6 +543,175 @@ export async function rejectPurchaseOrder(
     res.json({
       success: true,
       message: `Purchase Order ${po.poNumber} has been rejected.`,
+      data: { purchaseOrder: updated },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function acknowledgePurchaseOrder(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const { estimatedDeliveryDate, notes } = req.body;
+
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: { vendor: true },
+    });
+
+    if (!po) {
+      res.status(404).json({ success: false, message: 'Purchase order not found.' });
+      return;
+    }
+
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    if (isVendor && (!req.user?.vendorId || po.vendorId !== req.user.vendorId)) {
+      res.status(403).json({ success: false, message: 'Access denied. You can only acknowledge orders awarded to your company.' });
+      return;
+    }
+
+    if (![PoStatus.ORDERED, PoStatus.PARTIALLY_RECEIVED].includes(po.status as any)) {
+      res.status(400).json({
+        success: false,
+        message: `Purchase order with status ${po.status} cannot be acknowledged. Order must be in ORDERED or PARTIALLY_RECEIVED status.`,
+      });
+      return;
+    }
+
+    let parsedEstDate: Date | null = null;
+    if (estimatedDeliveryDate) {
+      const d = new Date(estimatedDeliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(d.getTime()) || d < today) {
+        res.status(400).json({ success: false, message: 'Estimated delivery date cannot be in the past.' });
+        return;
+      }
+      parsedEstDate = d;
+    }
+
+    const updated = await prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        acknowledgedAt: new Date(),
+        acknowledgedById: req.user?.id,
+        ...(parsedEstDate ? { estimatedDeliveryDate: parsedEstDate } : {}),
+      },
+      include: { vendor: true, vessel: true, items: true },
+    });
+
+    await logAudit({
+      userId: req.user?.id,
+      userName: req.user?.name || po.vendor.name,
+      userRole: req.user?.role || 'VENDOR',
+      action: 'PO_ACKNOWLEDGED_BY_VENDOR',
+      entityType: 'PURCHASE_ORDER',
+      entityId: po.id,
+      description: `Vendor ${po.vendor.name} acknowledged order ${po.poNumber}.${parsedEstDate ? ` Target delivery: ${parsedEstDate.toISOString().slice(0, 10)}.` : ''}${notes ? ` Notes: ${notes}` : ''}`,
+    });
+
+    res.json({
+      success: true,
+      message: `Purchase Order ${po.poNumber} acknowledged successfully.`,
+      data: { purchaseOrder: updated },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function dispatchPurchaseOrder(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const { carrierName, trackingNumber, dispatchedAt, dispatchNotes, estimatedDeliveryDate } = req.body;
+
+    if (!carrierName || !carrierName.trim()) {
+      res.status(400).json({ success: false, message: 'Carrier/logistic partner name is required.' });
+      return;
+    }
+    if (!trackingNumber || !trackingNumber.trim()) {
+      res.status(400).json({ success: false, message: 'Tracking/waybill number is required.' });
+      return;
+    }
+
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: { vendor: true },
+    });
+
+    if (!po) {
+      res.status(404).json({ success: false, message: 'Purchase order not found.' });
+      return;
+    }
+
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    if (isVendor && (!req.user?.vendorId || po.vendorId !== req.user.vendorId)) {
+      res.status(403).json({ success: false, message: 'Access denied. You can only dispatch orders awarded to your company.' });
+      return;
+    }
+
+    if (![PoStatus.ORDERED, PoStatus.PARTIALLY_RECEIVED].includes(po.status as any)) {
+      res.status(400).json({
+        success: false,
+        message: `Purchase order with status ${po.status} cannot be marked as dispatched.`,
+      });
+      return;
+    }
+
+    let parsedDispatchedDate = new Date();
+    if (dispatchedAt) {
+      const d = new Date(dispatchedAt);
+      if (!isNaN(d.getTime())) {
+        parsedDispatchedDate = d;
+      }
+    }
+
+    let parsedEstDate: Date | null = null;
+    if (estimatedDeliveryDate) {
+      const d = new Date(estimatedDeliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(d.getTime()) || d < today) {
+        res.status(400).json({ success: false, message: 'Estimated delivery date cannot be in the past.' });
+        return;
+      }
+      parsedEstDate = d;
+    }
+
+    const updated = await prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        carrierName: carrierName.trim(),
+        trackingNumber: trackingNumber.trim(),
+        dispatchedAt: parsedDispatchedDate,
+        dispatchNotes: dispatchNotes?.trim() || null,
+        ...(parsedEstDate ? { estimatedDeliveryDate: parsedEstDate } : {}),
+      },
+      include: { vendor: true, vessel: true, items: true },
+    });
+
+    await logAudit({
+      userId: req.user?.id,
+      userName: req.user?.name || po.vendor.name,
+      userRole: req.user?.role || 'VENDOR',
+      action: 'PO_DISPATCHED_BY_VENDOR',
+      entityType: 'PURCHASE_ORDER',
+      entityId: po.id,
+      description: `Vendor ${po.vendor.name} dispatched ${po.poNumber} via ${carrierName.trim()} (Tracking #${trackingNumber.trim()}).${dispatchNotes ? ` Notes: ${dispatchNotes.trim()}` : ''}`,
+    });
+
+    res.json({
+      success: true,
+      message: `Purchase Order ${po.poNumber} dispatch tracking recorded successfully.`,
       data: { purchaseOrder: updated },
     });
   } catch (error) {

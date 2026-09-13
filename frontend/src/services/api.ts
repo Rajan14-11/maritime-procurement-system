@@ -177,6 +177,16 @@ export const purchaseOrdersApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
+  acknowledge: (id: string, data?: { estimatedDeliveryDate?: string; notes?: string }) =>
+    request<{ purchaseOrder: PurchaseOrder }>(`/purchase-orders/${id}/acknowledge`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    }),
+  dispatch: (id: string, data: { carrierName: string; trackingNumber: string; dispatchedAt?: string; dispatchNotes?: string; estimatedDeliveryDate?: string }) =>
+    request<{ purchaseOrder: PurchaseOrder }>(`/purchase-orders/${id}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // 7. Deliveries API
@@ -197,6 +207,9 @@ export const vendorsApi = {
     return request<{ vendors: Vendor[] }>(`/vendors${buildQuery(params)}`);
   },
   getById: (id: string) => request<{ vendor: Vendor }>(`/vendors/${id}`),
+  getMyProfile: () => request<{ vendor: Vendor }>('/vendors/profile/me'),
+  updateMyProfile: (data: { contactPerson?: string; phone?: string; address?: string }) =>
+    request<{ vendor: Vendor }>('/vendors/profile/me', { method: 'PATCH', body: JSON.stringify(data) }),
   create: (data: any) => request<{ vendor: Vendor }>('/vendors', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) => request<{ vendor: Vendor }>(`/vendors/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };

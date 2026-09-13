@@ -49,6 +49,15 @@ export async function authenticateToken(
             status: true,
           },
         },
+        vendorId: true,
+        vendor: {
+          select: {
+            id: true,
+            vendorCode: true,
+            name: true,
+            status: true,
+          },
+        },
       },
     });
 

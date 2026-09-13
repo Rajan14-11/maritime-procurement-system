@@ -11,9 +11,10 @@ import {
   Power,
   Lock,
   Anchor,
+  Building2,
 } from 'lucide-react';
-import { usersApi, vesselsApi } from '../../services/api.js';
-import { User, UserRole, UserStatus, Vessel } from '../../types/index.js';
+import { usersApi, vesselsApi, vendorsApi } from '../../services/api.js';
+import { User, UserRole, UserStatus, Vessel, Vendor } from '../../types/index.js';
 import { StatusBadge } from '../../components/StatusBadge.js';
 import { Card } from '../../components/Card.js';
 import { Modal } from '../../components/Modal.js';
@@ -21,8 +22,10 @@ import { useAuth } from '../../context/AuthContext.js';
 
 export const UsersList: React.FC = () => {
   const { user: currentUser } = useAuth();
+  const isOfficer = currentUser?.role === 'PROCUREMENT_OFFICER';
   const [users, setUsers] = useState<User[]>([]);
   const [vessels, setVessels] = useState<Vessel[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +42,7 @@ export const UsersList: React.FC = () => {
   const [role, setRole] = useState<UserRole>('REQUESTER');
   const [department, setDepartment] = useState('Engine');
   const [vesselId, setVesselId] = useState<string>('');
+  const [vendorId, setVendorId] = useState<string>('');
   const [status, setStatus] = useState<UserStatus>('ACTIVE');
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -64,10 +68,13 @@ export const UsersList: React.FC = () => {
   }, [roleFilter]);
 
   useEffect(() => {
-    vesselsApi
-      .list({ status: 'ACTIVE' })
-      .then((res) => {
-        setVessels(res.vessels || []);
+    Promise.all([
+      vesselsApi.list({ status: 'ACTIVE' }),
+      vendorsApi.list(),
+    ])
+      .then(([vesselsRes, vendorsRes]) => {
+        setVessels(vesselsRes.vessels || []);
+        setVendors(vendorsRes.vendors || []);
       })
       .catch(() => {});
   }, []);
@@ -77,9 +84,10 @@ export const UsersList: React.FC = () => {
     setName('');
     setEmail('');
     setPassword('Password123!');
-    setRole('REQUESTER');
-    setDepartment('Engine');
+    setRole(isOfficer ? 'VENDOR' : 'REQUESTER');
+    setDepartment(isOfficer ? 'Commercial / Sales' : 'Engine');
     setVesselId('');
+    setVendorId('');
     setStatus('ACTIVE');
     setFormError(null);
     setModalOpen(true);
@@ -93,6 +101,7 @@ export const UsersList: React.FC = () => {
     setRole(targetUser.role);
     setDepartment(targetUser.department || 'Operations');
     setVesselId(targetUser.vesselId || targetUser.vessel?.id || '');
+    setVendorId(targetUser.vendorId || targetUser.vendor?.id || '');
     setStatus(targetUser.status);
     setFormError(null);
     setModalOpen(true);
@@ -126,9 +135,15 @@ export const UsersList: React.FC = () => {
       return;
     }
 
+    if (role === 'VENDOR' && !vendorId) {
+      setFormError('Please select an assigned Vendor Company for this account.');
+      return;
+    }
+
     try {
       setSaving(true);
       const assignedVessel = role === 'REQUESTER' ? (vesselId || null) : null;
+      const assignedVendor = role === 'VENDOR' ? (vendorId || null) : null;
 
       if (editingUser) {
         await usersApi.update(editingUser.id, {
@@ -136,6 +151,7 @@ export const UsersList: React.FC = () => {
           role,
           department: department.trim(),
           vesselId: assignedVessel,
+          vendorId: assignedVendor,
           status,
           password: password.trim() ? password.trim() : undefined,
         });
@@ -147,6 +163,7 @@ export const UsersList: React.FC = () => {
           role,
           department: department.trim(),
           vesselId: assignedVessel,
+          vendorId: assignedVendor,
         });
       }
 
@@ -167,6 +184,8 @@ export const UsersList: React.FC = () => {
         return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'PROCUREMENT_OFFICER':
         return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'VENDOR':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-300';
       case 'REQUESTER':
       default:
         return 'bg-emerald-100 text-emerald-800 border-emerald-300';
@@ -183,7 +202,9 @@ export const UsersList: React.FC = () => {
             User & Role Management
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Role-based access control, departmental assignments, and authentication status
+            {isOfficer
+              ? 'Provision and maintain external supplier user logins linked to approved vendors'
+              : 'Role-based access control, departmental assignments, and authentication status'}
           </p>
         </div>
 
@@ -192,7 +213,7 @@ export const UsersList: React.FC = () => {
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          <span>Add System User</span>
+          <span>{isOfficer ? 'Add Vendor User' : 'Add System User'}</span>
         </button>
       </div>
 
@@ -220,6 +241,7 @@ export const UsersList: React.FC = () => {
           <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
           <option value="APPROVER">Approver</option>
           <option value="ADMIN">Administrator</option>
+          <option value="VENDOR">Vendor Portal</option>
         </select>
 
         <button
@@ -261,7 +283,7 @@ export const UsersList: React.FC = () => {
                   <th className="py-3.5 px-4">Email Address</th>
                   <th className="py-3.5 px-4">System Role</th>
                   <th className="py-3.5 px-4">Department</th>
-                  <th className="py-3.5 px-4">Assigned Vessel</th>
+                  <th className="py-3.5 px-4">Assigned Scope / Entity</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-6 text-right">Actions</th>
                 </tr>
@@ -306,11 +328,27 @@ export const UsersList: React.FC = () => {
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
-                            Unassigned
+                            Unassigned Vessel
+                          </span>
+                        );
+                      })() : targetUser.role === 'VENDOR' ? (() => {
+                        const assignedVendor =
+                          targetUser.vendor ||
+                          vendors.find((v) => v.id === targetUser.vendorId);
+                        return assignedVendor ? (
+                          <div className="flex items-center gap-1.5 text-xs text-indigo-900 font-medium">
+                            <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span className="truncate max-w-[150px]" title={assignedVendor.name}>
+                              {assignedVendor.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
+                            Unassigned Vendor
                           </span>
                         );
                       })() : (
-                        <span className="text-slate-400 text-[11px] italic">Fleet-wide (N/A)</span>
+                        <span className="text-slate-400 text-[11px] italic">Fleet-wide (Internal)</span>
                       )}
                     </td>
                     <td className="py-3.5 px-4">
@@ -409,13 +447,21 @@ export const UsersList: React.FC = () => {
               </label>
               <select
                 value={role}
+                disabled={isOfficer}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white focus:ring-1 focus:ring-blue-600 disabled:bg-slate-100"
               >
-                <option value="REQUESTER">Requester</option>
-                <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
-                <option value="APPROVER">Approver</option>
-                <option value="ADMIN">Administrator</option>
+                {isOfficer ? (
+                  <option value="VENDOR">Vendor Portal</option>
+                ) : (
+                  <>
+                    <option value="REQUESTER">Requester</option>
+                    <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
+                    <option value="APPROVER">Approver</option>
+                    <option value="ADMIN">Administrator</option>
+                    <option value="VENDOR">Vendor Portal</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -456,6 +502,34 @@ export const UsersList: React.FC = () => {
               </select>
               <p className="text-[11px] text-slate-500">
                 This user will only be able to create PRs and view data for this specific vessel.
+              </p>
+            </div>
+          )}
+
+          {role === 'VENDOR' && (
+            <div className="p-3 bg-indigo-50/60 border border-indigo-200 rounded-lg space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-800 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                  Assigned Vendor Entity <span className="text-rose-500">*</span>
+                </span>
+                <span className="text-[10px] text-indigo-700 font-normal">Registered Suppliers</span>
+              </label>
+              <select
+                value={vendorId}
+                onChange={(e) => setVendorId(e.target.value)}
+                required
+                className="w-full px-3 py-2 text-xs border border-indigo-300 rounded-lg bg-white focus:ring-1 focus:ring-indigo-600"
+              >
+                <option value="">-- Select Vendor Entity --</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.vendorCode} • {v.categories})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500">
+                This user will log in to the Vendor Portal to bid on RFQs and fulfill orders for this supplier.
               </p>
             </div>
           )}

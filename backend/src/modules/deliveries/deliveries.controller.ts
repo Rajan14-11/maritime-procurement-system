@@ -33,6 +33,20 @@ export async function listDeliveries(
       where.purchaseOrder = { vesselId: String(vesselId) };
     }
 
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    const vendorIdFromUser = req.user?.vendorId;
+
+    if (isVendor) {
+      if (!vendorIdFromUser) {
+        res.json({ success: true, data: { receipts: [] } });
+        return;
+      }
+      where.purchaseOrder = {
+        ...(where.purchaseOrder || {}),
+        vendorId: vendorIdFromUser,
+      };
+    }
+
     const receipts = await prisma.goodsReceipt.findMany({
       where,
       include: {

@@ -29,6 +29,17 @@ export async function listRfqs(
       where.status = status as string;
     }
 
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    const vendorId = req.user?.vendorId;
+
+    if (isVendor) {
+      if (!vendorId) {
+        res.json({ success: true, data: { rfqs: [] } });
+        return;
+      }
+      where.rfqVendors = { some: { vendorId } };
+    }
+
     const rfqs = await prisma.rfq.findMany({
       where,
       include: {
@@ -42,7 +53,8 @@ export async function listRfqs(
           include: { vendor: true },
         },
         quotations: {
-          include: { vendor: true },
+          where: isVendor && vendorId ? { vendorId } : undefined,
+          include: { vendor: true, items: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -90,13 +102,39 @@ export async function getRfqById(
       return;
     }
 
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    const vendorId = req.user?.vendorId;
+
+    if (isVendor) {
+      if (!vendorId) {
+        res.status(403).json({ success: false, message: 'Vendor account not linked to an active supplier.' });
+        return;
+      }
+      const isInvited = rfq.rfqVendors.some((rv: any) => rv.vendorId === vendorId);
+      if (!isInvited) {
+        res.status(403).json({ success: false, message: 'Access denied. Your company is not invited to this tender.' });
+        return;
+      }
+      // Blind bidding: vendor only sees their own quotation
+      rfq.quotations = rfq.quotations.filter((q: any) => q.vendorId === vendorId);
+    }
+
+    const auditWhere: any = isVendor
+      ? {
+          OR: [
+            { entityType: 'RFQ', entityId: rfq.id, action: 'CREATE_RFQ' },
+            { entityType: 'RFQ', entityId: rfq.id, userId: req.user?.id },
+          ],
+        }
+      : {
+          OR: [
+            { entityType: 'RFQ', entityId: rfq.id },
+            { entityType: 'PURCHASE_REQUEST', entityId: rfq.purchaseRequestId },
+          ],
+        };
+
     const auditLogs = await prisma.auditLog.findMany({
-      where: {
-        OR: [
-          { entityType: 'RFQ', entityId: rfq.id },
-          { entityType: 'PURCHASE_REQUEST', entityId: rfq.purchaseRequestId },
-        ],
-      },
+      where: auditWhere,
       orderBy: { timestamp: 'asc' },
     });
 
@@ -271,7 +309,15 @@ export async function addQuotation(
       notes,
     } = req.body;
 
-    if (!vendorId) {
+    const isVendor = req.user?.role === UserRole.VENDOR;
+    const effectiveVendorId = isVendor ? (req.user?.vendorId || vendorId) : vendorId;
+
+    if (isVendor && (!req.user?.vendorId || (vendorId && vendorId !== req.user.vendorId))) {
+      res.status(403).json({ success: false, message: 'You can only submit quotations for your own company.' });
+      return;
+    }
+
+    if (!effectiveVendorId) {
       res.status(400).json({ success: false, message: 'Vendor ID is required.' });
       return;
     }
@@ -313,7 +359,7 @@ export async function addQuotation(
       return;
     }
 
-    const isInvited = rfq.rfqVendors.some((rv: any) => rv.vendorId === vendorId);
+    const isInvited = rfq.rfqVendors.some((rv: any) => rv.vendorId === effectiveVendorId);
     if (!isInvited) {
       res.status(400).json({
         success: false,
@@ -322,7 +368,7 @@ export async function addQuotation(
       return;
     }
 
-    const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
+    const vendor = await prisma.vendor.findUnique({ where: { id: effectiveVendorId } });
     if (!vendor || vendor.status !== 'ACTIVE') {
       res.status(400).json({
         success: false,
@@ -335,17 +381,27 @@ export async function addQuotation(
       where: {
         rfqId_vendorId: {
           rfqId: rfq.id,
-          vendorId,
+          vendorId: effectiveVendorId,
         },
       },
     });
 
     if (existing) {
-      res.status(400).json({
-        success: false,
-        message: `A quotation from ${vendor.name} has already been recorded for this RFQ.`,
-      });
-      return;
+      // Check revision eligibility: RFQ must be OPEN and deadline must not have passed
+      if (new Date(rfq.deadline) < new Date()) {
+        res.status(400).json({
+          success: false,
+          message: 'Tender submission deadline has passed. Quotation cannot be revised.',
+        });
+        return;
+      }
+      if (existing.status === QuotationStatus.SELECTED) {
+        res.status(400).json({
+          success: false,
+          message: 'This quotation has already been selected as winner and cannot be altered.',
+        });
+        return;
+      }
     }
 
     let finalQuotationDate = new Date();
@@ -364,20 +420,39 @@ export async function addQuotation(
     }
 
     const quotation = await prisma.$transaction(async (tx) => {
-      const q = await tx.quotation.create({
-        data: {
-          rfqId: rfq.id,
-          vendorId,
-          quotationNumber: quotationNumber.trim(),
-          quotationDate: finalQuotationDate,
-          totalPrice: price,
-          deliveryDays: days,
-          paymentTerms: paymentTerms?.trim() || vendor.paymentTerms,
-          notes: notes?.trim() || null,
-          status: QuotationStatus.RECEIVED,
-        },
-        include: { vendor: true },
-      });
+      let q;
+      if (existing) {
+        await tx.quotationItem.deleteMany({ where: { quotationId: existing.id } });
+        q = await tx.quotation.update({
+          where: { id: existing.id },
+          data: {
+            quotationNumber: quotationNumber.trim(),
+            quotationDate: finalQuotationDate,
+            totalPrice: price,
+            deliveryDays: days,
+            paymentTerms: paymentTerms?.trim() || vendor.paymentTerms,
+            notes: notes?.trim() || null,
+            submittedById: req.user?.id || existing.submittedById,
+          },
+          include: { vendor: true },
+        });
+      } else {
+        q = await tx.quotation.create({
+          data: {
+            rfqId: rfq.id,
+            vendorId: effectiveVendorId,
+            quotationNumber: quotationNumber.trim(),
+            quotationDate: finalQuotationDate,
+            totalPrice: price,
+            deliveryDays: days,
+            paymentTerms: paymentTerms?.trim() || vendor.paymentTerms,
+            notes: notes?.trim() || null,
+            status: QuotationStatus.RECEIVED,
+            submittedById: req.user?.id,
+          },
+          include: { vendor: true },
+        });
+      }
 
       // Populate quotation items:
       const prItems = rfq.purchaseRequest.items || [];
@@ -443,10 +518,10 @@ export async function addQuotation(
           userId: req.user!.id,
           userName: req.user!.name,
           userRole: req.user!.role,
-          action: 'ADD_QUOTATION',
+          action: existing ? 'UPDATE_QUOTATION' : 'ADD_QUOTATION',
           entityType: 'RFQ',
           entityId: rfq.id,
-          description: `Received quotation ${q.quotationNumber} from ${vendor.name} for ₹${price.toLocaleString()} (${days} days delivery, ${q.paymentTerms}).`,
+          description: `${existing ? 'Updated' : 'Received'} quotation ${q.quotationNumber} from ${vendor.name} for ₹${price.toLocaleString()} (${days} days delivery, ${q.paymentTerms}).`,
         },
         tx
       );
@@ -459,9 +534,9 @@ export async function addQuotation(
       include: { vendor: true, items: true },
     });
 
-    res.status(201).json({
+    res.status(existing ? 200 : 201).json({
       success: true,
-      message: `Quotation from ${vendor.name} recorded successfully.`,
+      message: `Quotation from ${vendor.name} ${existing ? 'updated' : 'recorded'} successfully.`,
       data: { quotation: refreshed || quotation },
     });
   } catch (error) {

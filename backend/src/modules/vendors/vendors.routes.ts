@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { listVendors, getVendorById, createVendor, updateVendor } from './vendors.controller.js';
+import {
+  listVendors,
+  getVendorById,
+  createVendor,
+  updateVendor,
+  getMyVendorProfile,
+  updateMyVendorProfile,
+} from './vendors.controller.js';
 import { authenticateToken, requireRole } from '../../middleware/auth.js';
 import { UserRole } from '../../types/index.js';
 
@@ -7,6 +14,8 @@ const router = Router();
 
 router.use(authenticateToken);
 
+router.get('/profile/me', requireRole(UserRole.VENDOR), getMyVendorProfile);
+router.patch('/profile/me', requireRole(UserRole.VENDOR), updateMyVendorProfile);
 router.get('/', listVendors);
 router.get('/:id', getVendorById);
 router.post(

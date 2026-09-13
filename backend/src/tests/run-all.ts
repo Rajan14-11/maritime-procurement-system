@@ -18,6 +18,7 @@ async function main() {
   const workflowTest = path.join(__dirname, 'workflow.test.js');
   const guardsTest = path.join(__dirname, 'adversarial-guards.test.js');
   const vesselScopedTest = path.join(__dirname, 'vessel-scoped-access.test.js');
+  const vendorPortalTest = path.join(__dirname, 'vendor-portal.test.js');
 
   const code1 = await runScript(workflowTest);
   if (code1 !== 0) {
@@ -37,8 +38,14 @@ async function main() {
     process.exit(code3);
   }
 
+  const code4 = await runScript(vendorPortalTest);
+  if (code4 !== 0) {
+    console.error(`\n❌ Vendor portal tests failed with code ${code4}`);
+    process.exit(code4);
+  }
+
   console.log('\n===================================================');
-  console.log('🎉 ALL TEST SUITES PASSED CLEANLY (16 WORKFLOW + 24 ADVERSARIAL + 11 VESSEL-SCOPED = 51 TESTS TOTAL)!');
+  console.log('🎉 ALL TEST SUITES PASSED CLEANLY (WORKFLOW + ADVERSARIAL + VESSEL-SCOPED + VENDOR PORTAL)!');
   console.log('===================================================\n');
 }
 

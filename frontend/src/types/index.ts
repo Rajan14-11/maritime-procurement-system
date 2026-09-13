@@ -1,4 +1,4 @@
-export type UserRole = 'REQUESTER' | 'PROCUREMENT_OFFICER' | 'APPROVER' | 'ADMIN';
+export type UserRole = 'REQUESTER' | 'PROCUREMENT_OFFICER' | 'APPROVER' | 'ADMIN' | 'VENDOR';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type VesselStatus = 'ACTIVE' | 'INACTIVE';
 export type VendorStatus = 'ACTIVE' | 'INACTIVE';
@@ -36,6 +36,8 @@ export interface User {
   status: UserStatus;
   vesselId?: string | null;
   vessel?: Vessel | null;
+  vendorId?: string | null;
+  vendor?: Vendor | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -239,6 +241,13 @@ export interface PurchaseOrder {
   createdById: string;
   createdBy?: { id: string; name: string; email: string; role?: string };
   rejectionReason?: string | null;
+  acknowledgedAt?: string | null;
+  acknowledgedById?: string | null;
+  carrierName?: string | null;
+  trackingNumber?: string | null;
+  dispatchedAt?: string | null;
+  dispatchNotes?: string | null;
+  estimatedDeliveryDate?: string | null;
   createdAt: string;
   updatedAt: string;
   items: PurchaseOrderItem[];
@@ -261,21 +270,26 @@ export interface AuditLog {
 
 export interface DashboardSummary {
   kpis: {
-    purchaseRequests: number;
-    pendingApprovals: number;
+    purchaseRequests?: number;
+    pendingApprovals?: number;
     approvedPrs?: number;
     awaitingRfqPrs?: number;
     pendingReviewPrs?: number;
     openRfqs: number;
     activePos: number;
-    pendingDeliveries: number;
-    completedProcurements: number;
+    pendingDeliveries?: number;
+    completedProcurements?: number;
     totalSpend: number;
+    submittedQuotes?: number;
+    pendingDispatches?: number;
+    completedDeliveries?: number;
   };
-  recentPurchaseRequests: PurchaseRequest[];
-  pendingApprovals: {
+  recentPurchaseRequests?: PurchaseRequest[];
+  pendingApprovals?: {
     purchaseRequests: PurchaseRequest[];
     purchaseOrders: PurchaseOrder[];
   };
   recentActivity: AuditLog[];
+  recentRfqs?: any[];
+  recentOrders?: any[];
 }

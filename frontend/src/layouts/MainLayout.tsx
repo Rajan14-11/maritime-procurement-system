@@ -105,13 +105,41 @@ export const MainLayout: React.FC = () => {
       name: 'User Management',
       href: '/users',
       icon: Users,
-      roles: ['ADMIN'],
+      roles: ['ADMIN', 'PROCUREMENT_OFFICER'],
     },
     {
       name: 'System Audit Logs',
       href: '/audit-logs',
       icon: History,
       roles: ['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER'],
+    },
+  ];
+
+  const vendorNav = [
+    {
+      name: 'Vendor Dashboard',
+      href: '/',
+      icon: LayoutDashboard,
+    },
+    {
+      name: 'Tender Invitations',
+      href: '/vendor/rfqs',
+      icon: Layers,
+    },
+    {
+      name: 'Orders & Dispatch',
+      href: '/vendor/purchase-orders',
+      icon: ShoppingCart,
+    },
+    {
+      name: 'Delivery Receipts',
+      href: '/vendor/deliveries',
+      icon: Truck,
+    },
+    {
+      name: 'Company Profile',
+      href: '/vendor/profile',
+      icon: Building2,
     },
   ];
 
@@ -123,6 +151,8 @@ export const MainLayout: React.FC = () => {
         return 'bg-amber-100 text-amber-800 border-amber-300';
       case 'PROCUREMENT_OFFICER':
         return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'VENDOR':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-300';
       case 'REQUESTER':
       default:
         return 'bg-emerald-100 text-emerald-800 border-emerald-300';
@@ -137,6 +167,8 @@ export const MainLayout: React.FC = () => {
         return 'Approver (Procurement Mgr)';
       case 'PROCUREMENT_OFFICER':
         return 'Procurement Officer';
+      case 'VENDOR':
+        return `Vendor (${user?.vendor?.name || 'Supplier'})`;
       case 'REQUESTER':
         return 'Requester (Chief Engineer)';
       default:
@@ -183,15 +215,13 @@ export const MainLayout: React.FC = () => {
 
         {/* Nav Links */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Main Workflows */}
-          <div>
-            <p className="px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              Procurement Operations
-            </p>
-            <nav className="space-y-1">
-              {navigation
-                .filter((item) => !item.roles || item.roles.includes(user?.role || ''))
-                .map((item) => {
+          {user?.role === 'VENDOR' ? (
+            <div>
+              <p className="px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Supplier Portal
+              </p>
+              <nav className="space-y-1">
+                {vendorNav.map((item) => {
                   const isActive =
                     item.href === '/'
                       ? location.pathname === '/'
@@ -216,51 +246,93 @@ export const MainLayout: React.FC = () => {
                         />
                         <span>{item.name}</span>
                       </div>
-                      {item.badge !== undefined && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950">
-                          {item.badge}
-                        </span>
-                      )}
                     </Link>
                   );
                 })}
-            </nav>
-          </div>
+              </nav>
+            </div>
+          ) : (
+            <>
+              {/* Main Workflows */}
+              <div>
+                <p className="px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Procurement Operations
+                </p>
+                <nav className="space-y-1">
+                  {navigation
+                    .filter((item) => !item.roles || item.roles.includes(user?.role || ''))
+                    .map((item) => {
+                      const isActive =
+                        item.href === '/'
+                          ? location.pathname === '/'
+                          : location.pathname.startsWith(item.href);
 
-          {/* Master Data & Admin */}
-          <div>
-            <p className="px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              Master Data & Governance
-            </p>
-            <nav className="space-y-1">
-              {masterDataNav
-                .filter((item) => !item.roles || item.roles.includes(user?.role || ''))
-                .map((item) => {
-                  const isActive = location.pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                        isActive
-                          ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                          : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <item.icon
-                          className={`w-4 h-4 ${
-                            isActive ? 'text-white' : 'text-slate-400'
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                              : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                           }`}
-                        />
-                        <span>{item.name}</span>
-                      </div>
-                    </Link>
-                  );
-                })}
-            </nav>
-          </div>
+                        >
+                          <div className="flex items-center gap-3">
+                            <item.icon
+                              className={`w-4 h-4 ${
+                                isActive ? 'text-white' : 'text-slate-400'
+                              }`}
+                            />
+                            <span>{item.name}</span>
+                          </div>
+                          {item.badge !== undefined && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-slate-950">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                </nav>
+              </div>
+
+              {/* Master Data & Admin */}
+              <div>
+                <p className="px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Master Data & Governance
+                </p>
+                <nav className="space-y-1">
+                  {masterDataNav
+                    .filter((item) => !item.roles || item.roles.includes(user?.role || ''))
+                    .map((item) => {
+                      const isActive = location.pathname.startsWith(item.href);
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                              : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <item.icon
+                              className={`w-4 h-4 ${
+                                isActive ? 'text-white' : 'text-slate-400'
+                              }`}
+                            />
+                            <span>{item.name}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                </nav>
+              </div>
+            </>
+          )}
         </div>
 
         {/* User Card & Logout Footer */}

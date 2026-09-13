@@ -22,7 +22,7 @@ router.post(
 );
 router.post(
   '/:id/quotations',
-  requireRole(UserRole.PROCUREMENT_OFFICER, UserRole.ADMIN),
+  requireRole(UserRole.PROCUREMENT_OFFICER, UserRole.ADMIN, UserRole.VENDOR),
   addQuotation
 );
 router.post(

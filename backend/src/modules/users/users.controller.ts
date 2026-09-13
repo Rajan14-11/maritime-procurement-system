@@ -37,6 +37,8 @@ export async function listUsers(
         status: true,
         vesselId: true,
         vessel: true,
+        vendorId: true,
+        vendor: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -70,6 +72,8 @@ export async function getUserById(
         status: true,
         vesselId: true,
         vessel: true,
+        vendorId: true,
+        vendor: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -98,12 +102,20 @@ export async function createUser(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { name, email, password, role, department, vesselId } = req.body;
+    const { name, email, password, role, department, vesselId, vendorId } = req.body;
 
     if (!name || !email || !password || !role) {
       res.status(400).json({
         success: false,
         message: 'Name, email, password, and role are required.',
+      });
+      return;
+    }
+
+    if (req.user?.role === UserRole.PROCUREMENT_OFFICER && role !== UserRole.VENDOR) {
+      res.status(403).json({
+        success: false,
+        message: 'Procurement Officers are only authorized to provision Vendor accounts.',
       });
       return;
     }
@@ -120,6 +132,18 @@ export async function createUser(
       const targetVessel = await prisma.vessel.findUnique({ where: { id: vesselId } });
       if (!targetVessel) {
         res.status(400).json({ success: false, message: 'Assigned vessel not found.' });
+        return;
+      }
+    }
+
+    if (role === UserRole.VENDOR) {
+      if (!vendorId) {
+        res.status(400).json({ success: false, message: 'Vendor company selection is required for Vendor accounts.' });
+        return;
+      }
+      const targetVendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
+      if (!targetVendor) {
+        res.status(400).json({ success: false, message: 'Assigned vendor company not found.' });
         return;
       }
     }
@@ -147,6 +171,7 @@ export async function createUser(
         department: department?.trim() || null,
         status: UserStatus.ACTIVE,
         vesselId: role === UserRole.REQUESTER ? (vesselId || null) : null,
+        vendorId: role === UserRole.VENDOR ? (vendorId || null) : null,
       },
       select: {
         id: true,
@@ -157,6 +182,8 @@ export async function createUser(
         status: true,
         vesselId: true,
         vessel: true,
+        vendorId: true,
+        vendor: true,
         createdAt: true,
       },
     });
@@ -168,7 +195,7 @@ export async function createUser(
       action: 'CREATE_USER',
       entityType: 'USER',
       entityId: user.id,
-      description: `Created user ${user.name} (${user.email}) with role ${user.role}.${user.vessel ? ` Assigned vessel: ${user.vessel.name}.` : ''}`,
+      description: `Created user ${user.name} (${user.email}) with role ${user.role}.${user.vessel ? ` Assigned vessel: ${user.vessel.name}.` : ''}${user.vendor ? ` Assigned vendor: ${user.vendor.name}.` : ''}`,
     });
 
     res.status(201).json({
@@ -188,11 +215,11 @@ export async function updateUser(
 ): Promise<void> {
   try {
     const id = req.params.id as string;
-    const { name, role, department, status, password, vesselId } = req.body;
+    const { name, role, department, status, password, vesselId, vendorId } = req.body;
 
     const existing = await prisma.user.findUnique({
       where: { id },
-      include: { vessel: true },
+      include: { vessel: true, vendor: true },
     });
     if (!existing) {
       res.status(404).json({
@@ -202,12 +229,27 @@ export async function updateUser(
       return;
     }
 
+    if (req.user?.role === UserRole.PROCUREMENT_OFFICER && existing.role !== UserRole.VENDOR) {
+      res.status(403).json({
+        success: false,
+        message: 'Procurement Officers can only manage Vendor accounts.',
+      });
+      return;
+    }
+
     const updateData: any = {};
     if (name) updateData.name = name.trim();
     if (role && Object.values(UserRole).includes(role)) {
+      if (req.user?.role === UserRole.PROCUREMENT_OFFICER && role !== UserRole.VENDOR) {
+        res.status(403).json({ success: false, message: 'Officers cannot change user role away from VENDOR.' });
+        return;
+      }
       updateData.role = role;
       if (role !== UserRole.REQUESTER) {
         updateData.vesselId = null;
+      }
+      if (role !== UserRole.VENDOR) {
+        updateData.vendorId = null;
       }
     }
     if (department !== undefined) updateData.department = department?.trim() || null;
@@ -241,6 +283,31 @@ export async function updateUser(
       }
     }
 
+    let vendorChangeDesc = '';
+    if (vendorId !== undefined) {
+      const effectiveRole = updateData.role || existing.role;
+      if (effectiveRole === UserRole.VENDOR) {
+        if (vendorId) {
+          const newVendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
+          if (!newVendor) {
+            res.status(400).json({ success: false, message: 'Assigned vendor company not found.' });
+            return;
+          }
+          updateData.vendorId = vendorId;
+          if (vendorId !== existing.vendorId) {
+            vendorChangeDesc = ` Vendor assignment changed from ${existing.vendor?.name || 'None'} to ${newVendor.name}.`;
+          }
+        } else {
+          updateData.vendorId = null;
+          if (existing.vendorId) {
+            vendorChangeDesc = ` Vendor assignment removed (previously ${existing.vendor?.name || 'None'}).`;
+          }
+        }
+      } else {
+        updateData.vendorId = null;
+      }
+    }
+
     const updated = await prisma.user.update({
       where: { id },
       data: updateData,
@@ -253,6 +320,8 @@ export async function updateUser(
         status: true,
         vesselId: true,
         vessel: true,
+        vendorId: true,
+        vendor: true,
         updatedAt: true,
       },
     });

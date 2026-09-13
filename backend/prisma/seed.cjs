@@ -194,6 +194,46 @@ async function main() {
 
   console.log('✓ 4 Vendors created');
 
+  // 4b. Seed Vendor Portal Demo Users
+  console.log('Seeding Vendor Portal Demo Users...');
+  const vendorMarineUser = await prisma.user.create({
+    data: {
+      name: 'MarineParts Rep',
+      email: 'vendor.marineparts@demo.com',
+      passwordHash,
+      role: 'VENDOR',
+      department: 'Commercial & Sales',
+      status: 'ACTIVE',
+      vendorId: marineParts.id,
+    },
+  });
+
+  const vendorOceanUser = await prisma.user.create({
+    data: {
+      name: 'OceanSupply Rep',
+      email: 'vendor.oceansupply@demo.com',
+      passwordHash,
+      role: 'VENDOR',
+      department: 'Order Fulfillment',
+      status: 'ACTIVE',
+      vendorId: oceanSupply.id,
+    },
+  });
+
+  const vendorShipTechUser = await prisma.user.create({
+    data: {
+      name: 'ShipTech Marine Rep',
+      email: 'vendor.shiptech@demo.com',
+      passwordHash,
+      role: 'VENDOR',
+      department: 'Logistics Operations',
+      status: 'ACTIVE',
+      vendorId: shipTech.id,
+    },
+  });
+
+  console.log('✓ 3 Vendor Portal demo users created (Password: Password123!)');
+
   // 5. Seed Historical PRs
   console.log('Seeding Initial PRs & Workflows...');
 
