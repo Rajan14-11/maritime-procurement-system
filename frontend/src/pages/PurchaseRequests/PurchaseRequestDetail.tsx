@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
+  ArrowRight,
   CheckCircle,
   XCircle,
   Layers,
@@ -144,6 +145,10 @@ export const PurchaseRequestDetail: React.FC = () => {
   const canCreateRfq =
     isApproved && (user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN');
 
+  const hasActivePo = pr.purchaseOrders?.some((po) => po.status !== 'REJECTED');
+  const rejectedPo = !hasActivePo ? pr.purchaseOrders?.find((po) => po.status === 'REJECTED') : null;
+  const isPoRejected = !!rejectedPo;
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Top Breadcrumb & Action Bar */}
@@ -160,7 +165,7 @@ export const PurchaseRequestDetail: React.FC = () => {
               <h1 className="text-xl font-bold text-slate-900 font-mono tracking-tight">
                 {pr.prNumber}
               </h1>
-              <StatusBadge status={pr.status} />
+              <StatusBadge status={isPoRejected ? 'PO_REJECTED' : pr.status} />
               <PriorityBadge priority={pr.priority} />
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -220,22 +225,79 @@ export const PurchaseRequestDetail: React.FC = () => {
               <span>View RFQ ({pr.rfq.rfqNumber})</span>
             </Link>
           )}
+
+          {pr.purchaseOrders && pr.purchaseOrders.length > 0 && (
+            isPoRejected ? (
+              <Link
+                to={`/purchase-orders/${rejectedPo?.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
+              >
+                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                <span>View Rejected PO ({rejectedPo?.poNumber})</span>
+              </Link>
+            ) : (
+              <Link
+                to={`/purchase-orders/${pr.purchaseOrders[0].id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>View Purchase Order ({pr.purchaseOrders[0].poNumber})</span>
+              </Link>
+            )
+          )}
         </div>
       </div>
 
       {/* Visual Workflow Stepper */}
-      <WorkflowStepper currentStatus={pr.status} isRejected={pr.status === 'REJECTED'} />
+      <WorkflowStepper
+        currentStatus={isPoRejected ? 'PO_REJECTED' : pr.status}
+        isRejected={pr.status === 'REJECTED'}
+        isPoRejected={isPoRejected}
+        rejectedPoNumber={rejectedPo?.poNumber}
+        rejectionReason={rejectedPo?.rejectionReason}
+      />
 
-      {/* Rejection Alert Callout if Rejected */}
+      {/* Rejection Alert Callout if PR was Rejected */}
       {pr.status === 'REJECTED' && (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-1 text-xs">
           <div className="flex items-center gap-2 font-bold text-rose-900">
             <XCircle className="w-4 h-4 text-rose-600" />
-            <span>Rejection Notice</span>
+            <span>PR Rejection Notice</span>
           </div>
           <p className="text-rose-800 pl-6">
             <strong>Reason:</strong> {pr.rejectionReason || 'No detailed reason provided.'}
           </p>
+        </div>
+      )}
+
+      {/* PO Rejection Alert Callout if PO was Rejected */}
+      {isPoRejected && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 font-bold text-rose-900">
+              <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Purchase Order {rejectedPo?.poNumber} Rejected by Approver</span>
+            </div>
+            <p className="text-rose-800 pl-6">
+              <strong>Reason:</strong> {rejectedPo?.rejectionReason || 'No detailed reason provided.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            {pr.rfq && (
+              <Link
+                to={`/rfqs/${pr.rfq.id}`}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold transition-colors shadow-xs"
+              >
+                Resolve in RFQ &rarr;
+              </Link>
+            )}
+            <Link
+              to={`/purchase-orders/${rejectedPo?.id}`}
+              className="px-3 py-1.5 bg-white border border-rose-200 text-rose-700 hover:bg-rose-100 rounded text-xs font-semibold transition-colors"
+            >
+              View PO Details
+            </Link>
+          </div>
         </div>
       )}
 
@@ -345,6 +407,49 @@ export const PurchaseRequestDetail: React.FC = () => {
 
         {/* Right 1 Col: Approvals & Audit Trail */}
         <div className="space-y-6">
+          {/* Issued Purchase Order Card if PO exists */}
+          {pr.purchaseOrders && pr.purchaseOrders.length > 0 && (
+            <Card
+              title="Issued Purchase Order"
+              action={
+                <Link
+                  to={`/purchase-orders/${pr.purchaseOrders[0].id}`}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                >
+                  <span>View Details</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              }
+            >
+              <div className="space-y-3 text-xs">
+                {pr.purchaseOrders.map((po) => (
+                  <div key={po.id} className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 font-mono text-sm">
+                        {po.poNumber}
+                      </span>
+                      <StatusBadge status={po.status} size="sm" />
+                    </div>
+                    {po.vendor && (
+                      <div className="text-slate-600 text-[11px]">
+                        Vendor: <strong className="text-slate-800">{po.vendor.name}</strong>
+                      </div>
+                    )}
+                    <div className="text-slate-600 text-[11px]">
+                      Total: <span className="font-bold text-emerald-600">₹{Number(po.total).toLocaleString()}</span>
+                    </div>
+                    <Link
+                      to={`/purchase-orders/${po.id}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 pt-1"
+                    >
+                      <span>Open Purchase Order &rarr;</span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Approval Status Card */}
           <Card title="Approvals Record">
             {pr.approvals && pr.approvals.length > 0 ? (

@@ -3,6 +3,7 @@ import prisma from '../../config/prisma.js';
 import {
   AuthenticatedRequest,
   PrStatus,
+  PoStatus,
   RfqStatus,
   QuotationStatus,
   UserRole,
@@ -47,6 +48,9 @@ export async function listRfqs(
           include: {
             vessel: true,
             items: true,
+            purchaseOrders: {
+              select: { id: true, poNumber: true, status: true, total: true, rejectionReason: true },
+            },
           },
         },
         rfqVendors: {
@@ -85,6 +89,9 @@ export async function getRfqById(
             vessel: true,
             requester: { select: { id: true, name: true, email: true } },
             items: true,
+            purchaseOrders: {
+              select: { id: true, poNumber: true, status: true, total: true, deliveryDate: true, rejectionReason: true },
+            },
           },
         },
         rfqVendors: {
@@ -571,27 +578,45 @@ export async function selectQuotation(
       return;
     }
 
-    if (rfq.status !== RfqStatus.OPEN) {
+    const activePo = await prisma.purchaseOrder.findFirst({
+      where: {
+        purchaseRequestId: rfq.purchaseRequestId,
+        status: { not: PoStatus.REJECTED },
+      },
+    });
+
+    if (activePo) {
       res.status(400).json({
         success: false,
-        message: `Cannot select a quotation from an RFQ with status ${rfq.status}. RFQ must be OPEN.`,
+        message: `Cannot change vendor selection because active Purchase Order (${activePo.poNumber}) is already in progress (${activePo.status}).`,
       });
       return;
     }
 
-    const alreadySelected = rfq.quotations.some((q: any) => q.status === QuotationStatus.SELECTED);
-    if (alreadySelected) {
-      res.status(409).json({
-        success: false,
-        message: 'A winning quotation has already been selected for this RFQ.',
-      });
-      return;
-    }
+    const isInitialSelection = rfq.status === RfqStatus.OPEN && rfq.purchaseRequest.status === PrStatus.RFQ_CREATED;
+    const hasPriorRejectedPo = await prisma.purchaseOrder.findFirst({
+      where: {
+        purchaseRequestId: rfq.purchaseRequestId,
+        status: PoStatus.REJECTED,
+      },
+    });
+    const isReSelectionAllowed = !activePo && !!hasPriorRejectedPo && (
+      rfq.purchaseRequest.status === PrStatus.VENDOR_SELECTED ||
+      rfq.purchaseRequest.status === PrStatus.PO_CREATED
+    );
 
-    if (rfq.purchaseRequest.status !== PrStatus.RFQ_CREATED) {
+    if (!isInitialSelection && !isReSelectionAllowed) {
+      const alreadySelected = rfq.quotations.some((q: any) => q.status === QuotationStatus.SELECTED);
+      if (alreadySelected) {
+        res.status(409).json({
+          success: false,
+          message: 'A winning quotation has already been selected for this RFQ.',
+        });
+        return;
+      }
       res.status(400).json({
         success: false,
-        message: `Purchase request is not in a valid state for vendor selection. Current PR status: ${rfq.purchaseRequest.status}.`,
+        message: `Cannot select a quotation at this time. Current PR status: ${rfq.purchaseRequest.status}.`,
       });
       return;
     }
@@ -601,6 +626,14 @@ export async function selectQuotation(
       res.status(400).json({
         success: false,
         message: 'Selected quotation does not belong to this RFQ.',
+      });
+      return;
+    }
+
+    if (targetQuote.status === QuotationStatus.SELECTED) {
+      res.status(400).json({
+        success: false,
+        message: 'This quotation is already the selected winner.',
       });
       return;
     }
@@ -649,7 +682,7 @@ export async function selectQuotation(
           action: 'SELECT_VENDOR',
           entityType: 'RFQ',
           entityId: rfq.id,
-          description: `Selected ${selectedQuote.vendor.name} (${selectedQuote.quotationNumber}, ₹${selectedQuote.totalPrice.toLocaleString()}) for RFQ ${rfq.rfqNumber}.${selectionReason ? ` Reason: ${selectionReason.trim()}` : ''}`,
+          description: `${isReSelectionAllowed ? 'Switched winning supplier to' : 'Selected'} ${selectedQuote.vendor.name} (${selectedQuote.quotationNumber}, ₹${selectedQuote.totalPrice.toLocaleString()}) for RFQ ${rfq.rfqNumber}.${selectionReason ? ` Reason: ${selectionReason.trim()}` : ''}`,
         },
         tx
       );

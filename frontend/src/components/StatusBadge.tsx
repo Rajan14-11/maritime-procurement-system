@@ -21,6 +21,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
       style = 'bg-emerald-50 text-emerald-800 border-emerald-300';
       break;
     case 'REJECTED':
+    case 'PO_REJECTED':
       style = 'bg-rose-50 text-rose-800 border-rose-300';
       break;
     case 'RFQ_CREATED':
@@ -72,10 +73,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
       style = 'bg-slate-100 text-slate-700 border-slate-200';
   }
 
-  const formattedLabel = status
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  const formattedLabel = normalized === 'PO_REJECTED'
+    ? 'PO Rejected'
+    : status
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
 
   const paddingClass = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs';
 

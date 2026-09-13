@@ -5,6 +5,9 @@ import { PrStatus } from '../types/index.js';
 interface WorkflowStepperProps {
   currentStatus: PrStatus | string;
   isRejected?: boolean;
+  isPoRejected?: boolean;
+  rejectedPoNumber?: string;
+  rejectionReason?: string | null;
 }
 
 const STEPS = [
@@ -19,7 +22,13 @@ const STEPS = [
   { key: 'COMPLETED', label: '9. Completed', desc: 'Fully Received' },
 ];
 
-export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ currentStatus, isRejected }) => {
+export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
+  currentStatus,
+  isRejected,
+  isPoRejected,
+  rejectedPoNumber,
+  rejectionReason,
+}) => {
   // Map PR / PO status to step index (0-8)
   const getStepIndex = (status: string): number => {
     switch (status) {
@@ -43,6 +52,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ currentStatus,
       case 'COMPLETED':
         return 8;
       case 'REJECTED':
+      case 'PO_REJECTED':
         return -1;
       default:
         return 0;
@@ -50,6 +60,7 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ currentStatus,
   };
 
   const activeIndex = getStepIndex(currentStatus);
+  const displayStatus = isPoRejected ? 'PO REJECTED' : currentStatus.replace(/_/g, ' ');
 
   return (
     <div className="w-full bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
@@ -58,17 +69,27 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ currentStatus,
           Procurement Lifecycle Progression
         </h3>
         <span className="text-xs text-slate-500 font-medium">
-          Current State: <strong className="text-slate-900">{currentStatus.replace(/_/g, ' ')}</strong>
+          Current State: <strong className={isPoRejected ? 'text-rose-600' : 'text-slate-900'}>{displayStatus}</strong>
         </span>
       </div>
 
-      {isRejected || currentStatus === 'REJECTED' ? (
+      {isPoRejected ? (
         <div className="flex items-center gap-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm">
           <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
           <div>
-            <p className="font-semibold">Workflow Terminated (Rejected)</p>
+            <p className="font-semibold">Purchase Order {rejectedPoNumber ? `(${rejectedPoNumber}) ` : ''}Rejected by Approver</p>
+            <p className="text-xs text-rose-700 mt-0.5">
+              {rejectionReason ? `Reason: "${rejectionReason}" — ` : ''}The drafted Purchase Order was rejected. Procurement Officer may review terms, select another quotation, or draft a revised PO.
+            </p>
+          </div>
+        </div>
+      ) : isRejected || currentStatus === 'REJECTED' ? (
+        <div className="flex items-center gap-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-sm">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <div>
+            <p className="font-semibold">Workflow Terminated (Request Rejected)</p>
             <p className="text-xs text-rose-600">
-              This procurement step was rejected by an approver. A new request or correction is required.
+              This purchase request was rejected by an approver. A new request or correction is required.
             </p>
           </div>
         </div>

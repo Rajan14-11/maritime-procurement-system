@@ -129,6 +129,8 @@ export interface PurchaseRequest {
     poNumber: string;
     status: PoStatus;
     total: number;
+    rejectionReason?: string | null;
+    vendor?: { id?: string; name: string };
   }[];
 }
 

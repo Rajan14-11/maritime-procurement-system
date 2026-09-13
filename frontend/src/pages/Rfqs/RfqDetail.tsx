@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   Send,
   Eye,
+  XCircle,
 } from 'lucide-react';
 import { rfqsApi, purchaseOrdersApi } from '../../services/api.js';
 import { Rfq, Quotation, AuditLog } from '../../types/index.js';
@@ -180,6 +181,11 @@ export const RfqDetail: React.FC = () => {
 
   const handleGeneratePo = async () => {
     if (!rfq) return;
+    const activePo = rfq.purchaseRequest?.purchaseOrders?.find((po: any) => po.status !== 'REJECTED');
+    if (activePo || ['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'COMPLETED'].includes(rfq.purchaseRequest?.status as string)) {
+      alert(`A purchase order has already been created for this request (${activePo?.poNumber || 'PO Issued'}).`);
+      return;
+    }
     try {
       setGeneratingPo(true);
       const res = await purchaseOrdersApi.create({
@@ -221,8 +227,19 @@ export const RfqDetail: React.FC = () => {
     );
   }
 
+  const canManageQuotes =
+    (user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN');
+
   const winningQuote = rfq.quotations.find((q) => q.status === 'SELECTED');
   const hasWinner = !!winningQuote;
+  const activePo = rfq.purchaseRequest?.purchaseOrders?.find((po: any) => po.status !== 'REJECTED');
+  const rejectedPo = rfq.purchaseRequest?.purchaseOrders?.find((po: any) => po.status === 'REJECTED');
+  const hasActivePo = !!activePo;
+  const prStatus = rfq.purchaseRequest?.status;
+  const isPoRejected = !hasActivePo && (!!rejectedPo || prStatus === 'PO_CREATED');
+  const isPoIssued = hasActivePo || ['ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'COMPLETED'].includes(prStatus as string);
+  const isPrCompleted = prStatus === 'COMPLETED';
+  const canGeneratePo = canManageQuotes && hasWinner && !hasActivePo && !isPoIssued && !isPrCompleted;
 
   // Comparison Matrix stats
   const quotesWithPrices = rfq.quotations.filter((q) => q.totalPrice > 0);
@@ -234,9 +251,6 @@ export const RfqDetail: React.FC = () => {
     quotesWithPrices.length > 0
       ? Math.min(...quotesWithPrices.map((q) => q.deliveryDays))
       : 0;
-
-  const canManageQuotes =
-    (user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN');
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -275,18 +289,94 @@ export const RfqDetail: React.FC = () => {
             </button>
           )}
 
-          {hasWinner && canManageQuotes && (
-            <button
-              onClick={handleGeneratePo}
-              disabled={generatingPo}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+          {isPoIssued && activePo ? (
+            <Link
+              to={`/purchase-orders/${activePo.id}`}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              <span>{generatingPo ? 'Drafting PO...' : 'Generate Purchase Order'}</span>
-            </button>
+              <span>View Purchase Order ({activePo.poNumber})</span>
+            </Link>
+          ) : isPoIssued ? (
+            <Link
+              to="/purchase-orders"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>View Purchase Orders</span>
+            </Link>
+          ) : (
+            canGeneratePo && (
+              <div className="flex items-center gap-2">
+                {isPoRejected && rejectedPo && (
+                  <Link
+                    to={`/purchase-orders/${rejectedPo.id}`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
+                  >
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                    <span>View Rejected PO ({rejectedPo.poNumber})</span>
+                  </Link>
+                )}
+                <button
+                  onClick={handleGeneratePo}
+                  disabled={generatingPo}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <span>{generatingPo ? 'Drafting PO...' : isPoRejected ? 'Re-issue Purchase Order' : 'Generate Purchase Order'}</span>
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>
+
+      {/* PO Rejection Alert Banner */}
+      {isPoRejected && (
+        <div className="p-4 bg-rose-50 border border-rose-300 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-rose-600 text-white rounded-lg">
+              <XCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-rose-950">
+                  Purchase Order Rejected by Manager {rejectedPo ? `(${rejectedPo.poNumber})` : ''}
+                </h3>
+                <StatusBadge status="PO_REJECTED" size="sm" />
+              </div>
+              <p className="text-xs text-rose-800 mt-1">
+                {rejectedPo?.rejectionReason
+                  ? `Manager's rejection note: "${rejectedPo.rejectionReason}"`
+                  : 'The previous purchase order was rejected during manager approval.'}
+              </p>
+              <p className="text-[11px] text-rose-700 mt-0.5">
+                Review the rejection feedback. You can re-issue a corrected purchase order or switch to another supplier proposal in the comparison matrix below.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            {rejectedPo && (
+              <Link
+                to={`/purchase-orders/${rejectedPo.id}`}
+                className="px-3.5 py-2 bg-white border border-rose-300 text-rose-700 hover:bg-rose-100 rounded-lg text-xs font-semibold shadow-2xs transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
+              >
+                <span>View Rejected PO</span>
+              </Link>
+            )}
+            {canGeneratePo && (
+              <button
+                onClick={handleGeneratePo}
+                disabled={generatingPo}
+                className="px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>{generatingPo ? 'Drafting PO...' : 'Re-issue Purchase Order →'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Winning Supplier Banner if Selected */}
       {winningQuote && (
@@ -310,14 +400,39 @@ export const RfqDetail: React.FC = () => {
               )}
             </div>
           </div>
-          {canManageQuotes ? (
-            <button
-              onClick={handleGeneratePo}
-              disabled={generatingPo}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs whitespace-nowrap"
-            >
-              Issue Purchase Order &rarr;
-            </button>
+          {isPoIssued ? (
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>
+                  {isPrCompleted ? 'Procurement Completed • ' : ''}PO Issued {activePo ? `(${activePo.poNumber})` : ''}
+                </span>
+              </span>
+              {activePo && (
+                <Link
+                  to={`/purchase-orders/${activePo.id}`}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs whitespace-nowrap inline-flex items-center gap-1"
+                >
+                  <span>View PO &rarr;</span>
+                </Link>
+              )}
+            </div>
+          ) : canGeneratePo ? (
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {isPoRejected && rejectedPo && (
+                <span className="text-xs text-rose-700 font-semibold flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                  <span>PO {rejectedPo.poNumber} Rejected</span>
+                </span>
+              )}
+              <button
+                onClick={handleGeneratePo}
+                disabled={generatingPo}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs whitespace-nowrap"
+              >
+                {isPoRejected ? 'Re-issue Purchase Order \u2192' : 'Issue Purchase Order \u2192'}
+              </button>
+            </div>
           ) : (
             <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold whitespace-nowrap">
               Awaiting PO Issuance by Officer
@@ -430,13 +545,13 @@ export const RfqDetail: React.FC = () => {
                       </td>
 
                       <td className="py-3.5 px-6 text-right">
-                        {!hasWinner && canManageQuotes ? (
+                        {(!hasWinner || isPoRejected) && canManageQuotes && !isWinner ? (
                           <button
                             onClick={() => openSelectWinner(quote)}
                             className="inline-flex items-center gap-1 px-3 py-1 bg-slate-900 hover:bg-blue-600 text-white rounded text-xs font-semibold transition-colors shadow-2xs"
                           >
                             <Trophy className="w-3 h-3" />
-                            <span>Select Winner</span>
+                            <span>{isPoRejected ? 'Switch Winner' : 'Select Winner'}</span>
                           </button>
                         ) : isWinner ? (
                           <span className="text-xs font-bold text-emerald-700 flex items-center justify-end gap-1">

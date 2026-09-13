@@ -511,43 +511,74 @@ export const Dashboard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
-                    {data.recentOrders.map((po: any) => (
-                      <div
-                        key={po.id}
-                        className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors px-2 rounded-lg"
-                      >
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900">{po.poNumber}</span>
-                            <span className="text-[11px] text-slate-500">
-                              • Vessel: {po.vessel?.name}
-                            </span>
-                            <span className="text-xs font-bold text-emerald-600">
-                              ₹{Number(po.total).toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-[11px]">
-                            <span className="text-slate-500">
-                              Required: {new Date(po.deliveryDate).toLocaleDateString()}
-                            </span>
-                            {po.acknowledgedAt ? (
-                              <span className="text-emerald-700 font-medium">✓ Acknowledged</span>
-                            ) : (
-                              <span className="text-amber-700 font-medium">⚠ Acknowledgment Pending</span>
-                            )}
-                            {po.dispatchedAt && (
-                              <span className="text-blue-700 font-medium">🚚 Dispatched ({po.carrierName})</span>
-                            )}
-                          </div>
-                        </div>
-                        <Link
-                          to="/vendor/purchase-orders"
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded text-xs font-semibold transition-colors self-end sm:self-auto"
+                    {data.recentOrders.map((po: any) => {
+                      const isDelivered = po.status === 'RECEIVED' || po.status === 'COMPLETED';
+                      const isPartiallyReceived = po.status === 'PARTIALLY_RECEIVED';
+                      const isDispatched = !!po.dispatchedAt;
+                      const isAcknowledged = !!po.acknowledgedAt;
+
+                      return (
+                        <div
+                          key={po.id}
+                          className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors px-2 rounded-lg"
                         >
-                          Manage Fulfillment &rarr;
-                        </Link>
-                      </div>
-                    ))}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-slate-900">{po.poNumber}</span>
+                              <span className="text-[11px] text-slate-500">
+                                • Vessel: {po.vessel?.name}
+                              </span>
+                              <span className="text-xs font-bold text-emerald-600">
+                                ₹{Number(po.total).toLocaleString()}
+                              </span>
+                              <StatusBadge status={po.status} size="sm" />
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] flex-wrap">
+                              <span className="text-slate-500">
+                                Required: {new Date(po.deliveryDate).toLocaleDateString()}
+                              </span>
+                              <span className="text-slate-300">•</span>
+                              {isDelivered ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  Delivered to Vessel
+                                </span>
+                              ) : isPartiallyReceived ? (
+                                <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
+                                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                  Partially Delivered
+                                </span>
+                              ) : isDispatched ? (
+                                <span className="inline-flex items-center gap-1 text-indigo-700 font-semibold">
+                                  <Truck className="w-3.5 h-3.5 text-indigo-600" />
+                                  Dispatched ({po.carrierName})
+                                </span>
+                              ) : isAcknowledged ? (
+                                <span className="inline-flex items-center gap-1 text-blue-700 font-semibold">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                                  Acknowledged (Awaiting Shipment)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
+                                  <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                  Acknowledgment Pending
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Link
+                            to="/vendor/purchase-orders"
+                            className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors self-end sm:self-auto ${
+                              isDelivered
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                : 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            {isDelivered ? 'View Order \u2192' : 'Manage Fulfillment \u2192'}
+                          </Link>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </Card>

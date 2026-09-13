@@ -290,7 +290,21 @@ export const PurchaseRequestList: React.FC = () => {
                       })}
                     </td>
                     <td className="py-3.5 px-4">
-                      <StatusBadge status={pr.status} />
+                      {(() => {
+                        const hasActivePo = pr.purchaseOrders?.some((po) => po.status !== 'REJECTED');
+                        const rejectedPo = !hasActivePo ? pr.purchaseOrders?.find((po) => po.status === 'REJECTED') : null;
+                        if (rejectedPo) {
+                          return (
+                            <div className="space-y-0.5">
+                              <StatusBadge status="PO_REJECTED" />
+                              <span className="text-[10px] text-rose-600 block font-mono font-medium">
+                                {rejectedPo.poNumber}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return <StatusBadge status={pr.status} />;
+                      })()}
                     </td>
                     <td className="py-3.5 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                       <Link

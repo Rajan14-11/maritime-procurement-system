@@ -215,7 +215,14 @@ export async function createPurchaseOrder(
       return;
     }
 
-    if (pr.status !== PrStatus.VENDOR_SELECTED) {
+    const activePoForPr = await prisma.purchaseOrder.findFirst({
+      where: {
+        purchaseRequestId: pr.id,
+        status: { not: PoStatus.REJECTED },
+      },
+    });
+
+    if (pr.status !== PrStatus.VENDOR_SELECTED && !(pr.status === PrStatus.PO_CREATED && !activePoForPr)) {
       res.status(400).json({
         success: false,
         message: `A purchase order cannot be created until a vendor is selected. Current PR status: ${pr.status}.`,
@@ -523,6 +530,13 @@ export async function rejectPurchaseOrder(
           rejectionReason: reason.trim(),
         },
       });
+
+      if (po.purchaseRequestId) {
+        await tx.purchaseRequest.update({
+          where: { id: po.purchaseRequestId },
+          data: { status: PrStatus.VENDOR_SELECTED },
+        });
+      }
 
       await logAudit(
         {

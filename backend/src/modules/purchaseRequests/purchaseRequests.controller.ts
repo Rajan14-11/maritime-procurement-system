@@ -89,7 +89,7 @@ export async function listPurchaseRequests(
           select: { id: true, rfqNumber: true, status: true },
         },
         purchaseOrders: {
-          select: { id: true, poNumber: true, status: true, total: true },
+          select: { id: true, poNumber: true, status: true, total: true, rejectionReason: true },
         },
       },
       orderBy: { createdAt: 'desc' },
