@@ -13,6 +13,12 @@
 
 ---
 
+> 📚 **Deep-Dive Technical & Interview Documentation**:
+> - ⚙️ **[Backend System Design, REST APIs & Prisma Engineering Guide](./docs/BACKEND_SYSTEM_DESIGN_AND_APIS.md)**: Detailed breakdown of all 30+ endpoints, Prisma query methods, interactive transactions, anti-over-delivery concurrency controls, and backend interview Q&A.
+> - 💻 **[Frontend Architecture, Component Hierarchy & UI/UX Guide](./docs/FRONTEND_SYSTEM_DESIGN_AND_COMPONENTS.md)**: Comprehensive tour of React 19 architecture, session hydration, role-based routing, quotation comparison matrix, dynamic forms, and frontend interview Q&A.
+
+---
+
 ## 1. Project Overview
 
 The **Maritime Procurement Management System** is an enterprise-grade ERP prototype engineered for commercial vessel fleet operators, ship management companies, procurement departments, shipboard technical crew (Chief Engineers / Captains), and **commercial marine suppliers**.
