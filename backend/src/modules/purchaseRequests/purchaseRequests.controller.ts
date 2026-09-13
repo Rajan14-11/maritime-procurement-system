@@ -511,10 +511,10 @@ export async function approvePurchaseRequest(
       return;
     }
 
-    if (pr.requesterId === req.user!.id && req.user!.role !== UserRole.ADMIN) {
+    if (pr.requesterId === req.user!.id) {
       res.status(403).json({
         success: false,
-        message: 'Conflict of interest: Requesters cannot approve their own purchase requests.',
+        message: 'Conflict of interest: Requesters cannot approve their own purchase requests. Peer authorization is required.',
       });
       return;
     }

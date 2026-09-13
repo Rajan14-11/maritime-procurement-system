@@ -362,12 +362,12 @@ export const VendorRfqList: React.FC = () => {
                           myQuote.status === 'SELECTED' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                               <Check className="w-3 h-3" />
-                              Awarded (${Number(myQuote.totalPrice || 0).toLocaleString()})
+                              Awarded (₹{Number(myQuote.totalPrice || 0).toLocaleString()})
                             </span>
                           ) : (
                             <div className="space-y-0.5">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-                                Submitted: ${Number(myQuote.totalPrice || 0).toLocaleString()}
+                                Submitted: ₹{Number(myQuote.totalPrice || 0).toLocaleString()}
                               </span>
                               <div className="text-[10px] text-slate-500 font-mono">
                                 {myQuote.quotationNumber}
@@ -471,7 +471,7 @@ export const VendorRfqList: React.FC = () => {
                 Requested Item Specifications & Pricing
               </h3>
               <span className="text-[11px] text-slate-500">
-                All prices quoted in USD ($)
+                All prices quoted in INR (₹)
               </span>
             </div>
 
@@ -481,7 +481,7 @@ export const VendorRfqList: React.FC = () => {
                   <tr>
                     <th className="py-2 px-3 text-left">Item Description</th>
                     <th className="py-2 px-3 text-center w-20">Qty</th>
-                    <th className="py-2 px-3 text-right w-32">Unit Price ($)</th>
+                    <th className="py-2 px-3 text-right w-32">Unit Price (₹)</th>
                     <th className="py-2 px-3 text-right w-28">Line Total</th>
                   </tr>
                 </thead>
@@ -500,7 +500,7 @@ export const VendorRfqList: React.FC = () => {
                       <td className="py-2.5 px-3 text-right">
                         {isReadOnly ? (
                           <span className="font-mono font-semibold text-slate-900">
-                            ${Number(item.unitPrice || 0).toFixed(2)}
+                            ₹{Number(item.unitPrice || 0).toFixed(2)}
                           </span>
                         ) : (
                           <input
@@ -516,7 +516,7 @@ export const VendorRfqList: React.FC = () => {
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                        ${Number(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₹{Number(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
@@ -527,7 +527,7 @@ export const VendorRfqList: React.FC = () => {
                       Quotation Subtotal:
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-sm font-bold text-indigo-700">
-                      ${Number(calculatedSubtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₹{Number(calculatedSubtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
                 </tfoot>

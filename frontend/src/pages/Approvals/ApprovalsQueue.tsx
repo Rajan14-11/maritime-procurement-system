@@ -17,8 +17,10 @@ import { PurchaseRequest, PurchaseOrder } from '../../types/index.js';
 import { PriorityBadge } from '../../components/PriorityBadge.js';
 import { Card } from '../../components/Card.js';
 import { Modal } from '../../components/Modal.js';
+import { useAuth } from '../../context/AuthContext.js';
 
 export const ApprovalsQueue: React.FC = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
@@ -237,15 +239,24 @@ export const ApprovalsQueue: React.FC = () => {
                             <Eye className="w-3 h-3" />
                             <span>View</span>
                           </Link>
-                          <button
-                            onClick={() =>
-                              openApprove('PR', pr.id, pr.prNumber, pr.estimatedTotal)
-                            }
-                            className="inline-flex items-center gap-1 px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold"
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Approve</span>
-                          </button>
+                          {pr.requesterId === user?.id ? (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200 italic"
+                              title="Strict Separation of Duties: Requesters cannot approve their own purchase requests. Peer authorization is required."
+                            >
+                              Self-Request (Approval Blocked)
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                openApprove('PR', pr.id, pr.prNumber, pr.estimatedTotal)
+                              }
+                              className="inline-flex items-center gap-1 px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Approve</span>
+                            </button>
+                          )}
                           <button
                             onClick={() =>
                               openReject('PR', pr.id, pr.prNumber, pr.estimatedTotal)

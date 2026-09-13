@@ -146,6 +146,7 @@ export const PurchaseRequestDetail: React.FC = () => {
     isApproved && (user?.role === 'PROCUREMENT_OFFICER' || user?.role === 'ADMIN');
 
   const hasActivePo = pr.purchaseOrders?.some((po) => po.status !== 'REJECTED');
+  const activePo = pr.purchaseOrders?.find((po) => po.status !== 'REJECTED') || pr.purchaseOrders?.[0];
   const rejectedPo = !hasActivePo ? pr.purchaseOrders?.find((po) => po.status === 'REJECTED') : null;
   const isPoRejected = !!rejectedPo;
 
@@ -237,11 +238,11 @@ export const PurchaseRequestDetail: React.FC = () => {
               </Link>
             ) : (
               <Link
-                to={`/purchase-orders/${pr.purchaseOrders[0].id}`}
+                to={`/purchase-orders/${activePo?.id}`}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                <span>View Purchase Order ({pr.purchaseOrders[0].poNumber})</span>
+                <span>View Purchase Order ({activePo?.poNumber})</span>
               </Link>
             )
           )}
@@ -413,7 +414,7 @@ export const PurchaseRequestDetail: React.FC = () => {
               title="Issued Purchase Order"
               action={
                 <Link
-                  to={`/purchase-orders/${pr.purchaseOrders[0].id}`}
+                  to={`/purchase-orders/${activePo?.id}`}
                   className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
                 >
                   <span>View Details</span>

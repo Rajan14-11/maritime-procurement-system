@@ -321,8 +321,18 @@ export async function getDashboardSummary(
           },
         });
 
-    // Recent activity: requesters only see their own activity
-    const activityScope = isRequester && userId ? { userId } : {};
+    // Recent activity: requesters see their own activity; officers see procurement & vendor actions; approvers/admins see system-wide events
+    const activityScope = isRequester && userId
+      ? { userId }
+      : req.user?.role === UserRole.PROCUREMENT_OFFICER
+      ? {
+          OR: [
+            { userId },
+            { entityType: { in: ['PURCHASE_REQUEST', 'RFQ', 'PURCHASE_ORDER', 'GOODS_RECEIPT'] } },
+            { action: { in: ['CREATE_USER', 'UPDATE_USER'] }, entityType: 'USER', description: { contains: 'Vendor' } },
+          ],
+        }
+      : {};
     const recentActivity = await prisma.auditLog.findMany({
       where: activityScope,
       take: 8,

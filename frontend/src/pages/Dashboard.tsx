@@ -748,7 +748,7 @@ export const Dashboard: React.FC = () => {
             title="Procurement Activity Trail"
             subtitle="Real-time chronological events from database"
             action={
-              user?.role !== 'REQUESTER' && user?.role !== 'VENDOR' ? (
+              user?.role === 'ADMIN' || user?.role === 'APPROVER' ? (
                 <Link
                   to="/audit-logs"
                   className="text-xs font-semibold text-blue-600 hover:text-blue-700"

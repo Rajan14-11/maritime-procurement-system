@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Layers,
   Plus,
@@ -23,7 +23,8 @@ import { useAuth } from '../../context/AuthContext.js';
 
 export const RfqList: React.FC = () => {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rfqs, setRfqs] = useState<Rfq[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,15 +69,16 @@ export const RfqList: React.FC = () => {
         purchaseRequestsApi.list({ status: 'APPROVED' }),
         vendorsApi.list({ status: 'ACTIVE' }),
       ]);
-      setApprovedPrs(prsRes.purchaseRequests || []);
+      const unassignedApprovedPrs = (prsRes.purchaseRequests || []).filter((pr: any) => !pr.rfq);
+      setApprovedPrs(unassignedApprovedPrs);
       setActiveVendors(vendorsRes.vendors || []);
 
       const queryPrId = searchParams.get('createForPr');
       if (queryPrId) {
         setSelectedPrId(queryPrId);
         setCreateModalOpen(true);
-      } else if (prsRes.purchaseRequests && prsRes.purchaseRequests.length > 0) {
-        setSelectedPrId(prsRes.purchaseRequests[0].id);
+      } else if (unassignedApprovedPrs.length > 0) {
+        setSelectedPrId(unassignedApprovedPrs[0].id);
       }
     } catch (e) {}
   };
@@ -149,7 +151,7 @@ export const RfqList: React.FC = () => {
       setCreateModalOpen(false);
       setSelectedVendorIds([]);
       await loadRfqs();
-      window.location.href = `/rfqs/${res.rfq.id}`;
+      navigate(`/rfqs/${res.rfq.id}`);
     } catch (err: any) {
       setFormError(err.message || 'Failed to create RFQ.');
     } finally {
@@ -257,7 +259,7 @@ export const RfqList: React.FC = () => {
                   <tr
                     key={rfq.id}
                     className="hover:bg-slate-50/50 transition-colors cursor-pointer group"
-                    onClick={() => (window.location.href = `/rfqs/${rfq.id}`)}
+                    onClick={() => navigate(`/rfqs/${rfq.id}`)}
                   >
                     <td className="py-3.5 px-6 font-bold text-blue-600 font-mono group-hover:underline">
                       {rfq.rfqNumber}

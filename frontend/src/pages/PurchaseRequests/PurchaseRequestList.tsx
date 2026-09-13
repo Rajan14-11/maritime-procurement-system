@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext.js';
 
 export const PurchaseRequestList: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const canCreatePr = user?.role === 'REQUESTER' || user?.role === 'ADMIN';
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequest[]>([]);
@@ -257,7 +258,7 @@ export const PurchaseRequestList: React.FC = () => {
                   <tr
                     key={pr.id}
                     className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
-                    onClick={() => (window.location.href = `/purchase-requests/${pr.id}`)}
+                    onClick={() => navigate(`/purchase-requests/${pr.id}`)}
                   >
                     <td className="py-3.5 px-6 font-bold text-blue-600 group-hover:underline">
                       {pr.prNumber}

@@ -247,8 +247,18 @@ export async function createRfq(
       return;
     }
 
-    const count = await prisma.rfq.count();
-    const rfqNumber = `RFQ-${1001 + count}`;
+    const lastRfq = await prisma.rfq.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { rfqNumber: true },
+    });
+    let nextRfqNum = 1001;
+    if (lastRfq && lastRfq.rfqNumber.startsWith('RFQ-')) {
+      const parsed = parseInt(lastRfq.rfqNumber.replace('RFQ-', ''), 10);
+      if (!isNaN(parsed)) {
+        nextRfqNum = parsed + 1;
+      }
+    }
+    const rfqNumber = `RFQ-${nextRfqNum}`;
 
     const result = await prisma.$transaction(async (tx) => {
       const rfq = await tx.rfq.create({

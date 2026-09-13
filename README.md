@@ -366,7 +366,7 @@ Every state transition, financial mutation, and data query is validated by serve
 | **Login to System** | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Create & Submit PR** | ✅ *(Assigned vessel only)* | ❌ | ❌ | ✅ | ❌ |
 | **View Draft PRs** | ✅ *(Own drafts only)* | ❌ | ❌ | ✅ | ❌ |
-| **Approve / Reject PR** | ❌ *(Self-approval blocked)* | ❌ | ✅ | ✅ | ❌ |
+| **Approve / Reject PR** | ❌ *(Self-approval blocked)* | ❌ | ✅ *(Peer review only; self-approval blocked)* | ✅ *(Peer review only; self-approval blocked)* | ❌ |
 | **Create RFQ & Invite Vendors** | ❌ | ✅ | ❌ | ✅ | ❌ |
 | **Submit Blind Quotation** | ❌ | ❌ | ❌ | ❌ | ✅ *(Invited RFQs only)* |
 | **Select Winning Supplier** | ❌ | ✅ | ❌ | ✅ | ❌ |
@@ -387,7 +387,7 @@ Every state transition, financial mutation, and data query is validated by serve
 ## 9. Key Business Rules & Invariant Guards
 
 1. **PO Price Quotation Inheritance**: Purchase Order line items inherit `unitPrice` and `total` directly from the selected vendor quotation, never from the PR estimated prices. Sum of line totals strictly equals PO subtotal.
-2. **Conflict of Interest**: Requesters cannot approve their own purchase requests.
+2. **Universal Separation of Duties (SoD) & Conflict of Interest**: No user—including System Administrators and Managers—can approve their own purchase request (`pr.requesterId === req.user.id`). Peer authorization is strictly enforced across the backend and frontend to prevent unchecked financial commitments.
 3. **RFQ Blind Bidding Guard**: Vendors can only view RFQs to which they have been explicitly invited and can only view their own quotations. Competitor pricing is completely obscured.
 4. **PO Rejection Recovery Invariant**: When a manager rejects a PO, the PR status automatically reverts to `VENDOR_SELECTED`. The Procurement Officer can re-issue the PO or switch the winning supplier to another quote.
 5. **PO Deduplication**: A quotation or PR cannot generate multiple active purchase orders (HTTP 409).
@@ -396,8 +396,10 @@ Every state transition, financial mutation, and data query is validated by serve
 8. **Concurrency Protection**: Delivery intake reads fresh balances and updates increments atomically inside `prisma.$transaction`. Simultaneous delivery requests cannot over-deliver.
 9. **Transaction-Safe Audit Trail**: In financial and state-changing mutations, business updates and audit logging execute within the same database transaction; if an audit log write fails, the entire transaction rolls back.
 10. **Future-Only Date Assignments**: Requisition required dates, quotation tender deadlines, PO delivery commitments, and Goods Receipt dates strictly reject past timestamps.
-11. **Separation of Duties (SoD) for Audit Logs**: Global system audit logs (`/api/audit-logs`) are strictly restricted to `ADMIN` and `APPROVER` (Managers). Operational buyers (`PROCUREMENT_OFFICER`) and technical crew retain contextual audit trails on specific documents (PRs, RFQs, POs), but are barred from system-wide supervisory logs.
+11. **Separation of Duties (SoD) for Audit Logs**: Global system audit logs (`/api/audit-logs`) are strictly restricted to `ADMIN` and `APPROVER` (Managers). Operational buyers (`PROCUREMENT_OFFICER`) and technical crew retain contextual audit trails on specific documents (PRs, RFQs, POs), but are barred from system-wide supervisory logs. Dashboard recent activity feeds for Procurement Officers strictly exclude internal staff user administration events.
 12. **Scoped Vendor User Management**: Procurement Officers can provision and manage login credentials strictly for external marine suppliers (`role: VENDOR`). Internal staff accounts (Admins, Managers, Vessel Engineers) are completely excluded from both API responses and UI tables for Officers to prevent organizational data leakage.
+13. **Deterministic Sequential RFQ Numbering**: RFQ numbering uses monotonic sequence scanning rather than record counting to prevent database unique constraint collisions under record deletions or seeded fixtures.
+14. **Currency Standardization (₹ INR)**: Fleet requisitioning, quotation benchmarking, vendor bidding, and purchase orders are standardized in Indian Rupees (₹) across both buyer and vendor portals to eliminate commercial conversion ambiguity.
 
 ---
 
@@ -472,7 +474,7 @@ The codebase features comprehensive automated integration, state machine, RBAC s
 npm --prefix backend test
 ```
 
-### Test Coverage (81 Tests Total, 0 Failures):
+### Test Coverage (84 Tests Total, 0 Failures):
 
 - **Workflow Test Suite** (`workflow.test.ts` — 16 Tests):
   - PR lifecycle: draft creation, line-item calculations, and manager approval
@@ -480,12 +482,14 @@ npm --prefix backend test
   - Vendor quotation recording and winner selection
   - PO generation and approval transition to `ORDERED`
   - Goods receipt, partial delivery tracking (6/10), completion (10/10)
-- **Adversarial & Invariant Security Test Suite** (`adversarial-guards.test.ts` — 34 Tests):
+- **Adversarial & Invariant Security Test Suite** (`adversarial-guards.test.ts` — 37 Tests):
   - Requester self-approval block (HTTP 403)
+  - Admin self-approval block (strict SoD returns HTTP 403)
   - Non-approver permission block (HTTP 403)
   - Cross-user draft PR submission block (HTTP 403)
   - Approver draft PR invisibility enforcement
   - Unapproved PR RFQ creation block (HTTP 400)
+  - Deterministic sequential RFQ number generation (HTTP 201)
   - Inactive vendor RFQ inclusion block (HTTP 400)
   - Duplicate winner selection rejection (HTTP 409)
   - Closed RFQ selection block (HTTP 400)
@@ -495,6 +499,7 @@ npm --prefix backend test
   - Procurement Officer global audit log endpoint access block (HTTP 403)
   - Procurement Officer user list scoped strictly to `VENDOR` accounts only
   - Admin and Manager global audit log access authorization (HTTP 200)
+  - Procurement Officer dashboard activity feed exclusion of internal staff admin events
   - Anti-over-delivery quantity validation (HTTP 400)
   - Unapproved PO delivery block (HTTP 400)
   - Concurrent delivery race condition simulation test (atomic transaction validation)

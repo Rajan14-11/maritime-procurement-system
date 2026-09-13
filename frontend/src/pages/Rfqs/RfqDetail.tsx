@@ -194,7 +194,7 @@ export const RfqDetail: React.FC = () => {
           Date.now() + ((winningQuote?.deliveryDays || 5) * 24 * 60 * 60 * 1000)
         ).toISOString(),
       });
-      window.location.href = `/purchase-orders/${res.purchaseOrder.id}`;
+      navigate(`/purchase-orders/${res.purchaseOrder.id}`);
     } catch (err: any) {
       alert(err.message || 'Failed to generate purchase order.');
     } finally {

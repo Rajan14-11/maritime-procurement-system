@@ -128,6 +128,36 @@ async function runAdversarialTests() {
       `Got status ${approveSelfRes.status}: ${approveSelfRes.data.message}`
     );
 
+    // --- TEST 1b: Admin cannot self-approve own PR (Strict SoD, HTTP 403) ---
+    const adminPrRes = await api('/api/purchase-requests', {
+      method: 'POST',
+      token: adminToken,
+      body: {
+        vesselId: vessel.id,
+        department: 'Deck',
+        priority: 'MEDIUM',
+        requiredDate: new Date(Date.now() + 10 * 86400000).toISOString(),
+        reason: 'Admin Self-Approval Prevention Test',
+        items: [
+          { itemName: 'Mooring Rope 50m', quantity: 2, unit: 'Rolls', estimatedUnitPrice: 5000 },
+        ],
+        submitImmediately: true,
+      },
+    });
+    const adminPrId = adminPrRes.data.data.purchaseRequest.id;
+    createdPrIds.push(adminPrId);
+
+    const approveAdminSelfRes = await api(`/api/purchase-requests/${adminPrId}/approve`, {
+      method: 'POST',
+      token: adminToken,
+      body: { comments: 'Admin self approval attempt' },
+    });
+    assert(
+      approveAdminSelfRes.status === 403,
+      '1b. Admin cannot self-approve own PR (strict SoD returns HTTP 403)',
+      `Got status ${approveAdminSelfRes.status}: ${approveAdminSelfRes.data.message}`
+    );
+
     // --- TEST 2: Non-approver (Procurement Officer) cannot approve PR (HTTP 403) ---
     const officerApproveRes = await api(`/api/purchase-requests/${pr1Id}/approve`, {
       method: 'POST',
@@ -255,6 +285,11 @@ async function runAdversarialTests() {
     });
     const rfqId = validRfqRes.data.data.rfq.id;
     createdRfqIds.push(rfqId);
+    assert(
+      validRfqRes.status === 201 && validRfqRes.data.data.rfq.rfqNumber.startsWith('RFQ-'),
+      '4b. RFQ number generated deterministically with sequential prefix (HTTP 201)',
+      `Got ${validRfqRes.data?.data?.rfq?.rfqNumber}`
+    );
 
     // Add 2 quotations with DIFFERENT prices than PR estimate (PR estimate: 5 x 1000 = 5,000)
     // Quote A: 5 x 1,200 = 6,000
@@ -430,6 +465,20 @@ async function runAdversarialTests() {
     assert(
       adminAuditRes.status === 200 && Array.isArray(adminAuditRes.data.data.logs),
       '10d. Admin / Manager can access audit logs (HTTP 200 returned)'
+    );
+
+    // --- TEST 10e: Officer dashboard summary activity feed excludes internal staff admin audits ---
+    const officerDashRes = await api('/api/dashboard/summary', {
+      token: officerToken,
+    });
+    const officerActivities = officerDashRes.data?.data?.recentActivity || [];
+    const containsStaffAdminAudit = officerActivities.some((a: any) =>
+      a.entityType === 'USER' && (a.action === 'CREATE_USER' || a.action === 'UPDATE_USER') && !a.description?.includes('Vendor')
+    );
+    assert(
+      officerDashRes.status === 200 && !containsStaffAdminAudit,
+      '10e. Procurement Officer dashboard activity feed strictly excludes internal staff admin events',
+      'Officer received internal staff user audit events on dashboard'
     );
 
     // --- TEST 11: Non-Admin cannot create or update vessels (HTTP 403) ---
