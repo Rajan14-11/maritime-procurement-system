@@ -8,7 +8,7 @@ const router = Router();
 router.use(authenticateToken);
 router.get(
   '/',
-  requireRole(UserRole.ADMIN, UserRole.APPROVER, UserRole.PROCUREMENT_OFFICER),
+  requireRole(UserRole.ADMIN, UserRole.APPROVER),
   listAuditLogs
 );
 

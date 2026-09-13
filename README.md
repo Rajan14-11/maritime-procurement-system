@@ -377,7 +377,8 @@ Every state transition, financial mutation, and data query is validated by serve
 | **Input Shipment Tracking & Dispatch**| ❌ | ❌ | ❌ | ❌ | ✅ *(Awarded POs only)* |
 | **Log Port Delivery (GRN)** | ❌ | ✅ | ❌ | ✅ | ❌ |
 | **View Goods Receipt Notes** | ✅ *(Assigned vessel)* | ✅ | ✅ | ✅ | ✅ *(Own POs only)* |
-| **Access Full Audit Trail** | ❌ *(HTTP 403)* | ✅ | ✅ | ✅ | ❌ *(HTTP 403)* |
+| **Access Global Audit Logs** | ❌ *(HTTP 403)* | ❌ *(Contextual only)* | ✅ *(Supervisory audit)* | ✅ *(Full system logs)* | ❌ *(HTTP 403)* |
+| **Manage User Accounts** | ❌ | ✅ *(Vendor Portal accounts only)* | ❌ | ✅ *(All fleet roles & accounts)* | ❌ |
 | **Manage Fleet Vessels** | ❌ *(Read-only)* | ❌ *(Read-only)* | ❌ *(Read-only)* | ✅ *(Full CRUD)* | ❌ |
 | **Manage Vendor Company Profile** | ❌ | ❌ | ❌ | ✅ | ✅ *(Own company only)* |
 
@@ -395,6 +396,8 @@ Every state transition, financial mutation, and data query is validated by serve
 8. **Concurrency Protection**: Delivery intake reads fresh balances and updates increments atomically inside `prisma.$transaction`. Simultaneous delivery requests cannot over-deliver.
 9. **Transaction-Safe Audit Trail**: In financial and state-changing mutations, business updates and audit logging execute within the same database transaction; if an audit log write fails, the entire transaction rolls back.
 10. **Future-Only Date Assignments**: Requisition required dates, quotation tender deadlines, PO delivery commitments, and Goods Receipt dates strictly reject past timestamps.
+11. **Separation of Duties (SoD) for Audit Logs**: Global system audit logs (`/api/audit-logs`) are strictly restricted to `ADMIN` and `APPROVER` (Managers). Operational buyers (`PROCUREMENT_OFFICER`) and technical crew retain contextual audit trails on specific documents (PRs, RFQs, POs), but are barred from system-wide supervisory logs.
+12. **Scoped Vendor User Management**: Procurement Officers can provision and manage login credentials strictly for external marine suppliers (`role: VENDOR`). Internal staff accounts (Admins, Managers, Vessel Engineers) are completely excluded from both API responses and UI tables for Officers to prevent organizational data leakage.
 
 ---
 
@@ -469,7 +472,7 @@ The codebase features comprehensive automated integration, state machine, RBAC s
 npm --prefix backend test
 ```
 
-### Test Coverage (79 Tests Total, 0 Failures):
+### Test Coverage (81 Tests Total, 0 Failures):
 
 - **Workflow Test Suite** (`workflow.test.ts` — 16 Tests):
   - PR lifecycle: draft creation, line-item calculations, and manager approval
@@ -477,7 +480,7 @@ npm --prefix backend test
   - Vendor quotation recording and winner selection
   - PO generation and approval transition to `ORDERED`
   - Goods receipt, partial delivery tracking (6/10), completion (10/10)
-- **Adversarial & Invariant Security Test Suite** (`adversarial-guards.test.ts` — 32 Tests):
+- **Adversarial & Invariant Security Test Suite** (`adversarial-guards.test.ts` — 34 Tests):
   - Requester self-approval block (HTTP 403)
   - Non-approver permission block (HTTP 403)
   - Cross-user draft PR submission block (HTTP 403)
@@ -489,6 +492,9 @@ npm --prefix backend test
   - Duplicate PO generation block (HTTP 409)
   - PO price quotation inheritance verification
   - Requester audit log endpoint access block (HTTP 403)
+  - Procurement Officer global audit log endpoint access block (HTTP 403)
+  - Procurement Officer user list scoped strictly to `VENDOR` accounts only
+  - Admin and Manager global audit log access authorization (HTTP 200)
   - Anti-over-delivery quantity validation (HTTP 400)
   - Unapproved PO delivery block (HTTP 400)
   - Concurrent delivery race condition simulation test (atomic transaction validation)

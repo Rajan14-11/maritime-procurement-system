@@ -53,7 +53,7 @@ export const UsersList: React.FC = () => {
       setError(null);
       const res = await usersApi.list({
         search: search.trim() || undefined,
-        role: roleFilter || undefined,
+        role: isOfficer ? 'VENDOR' : (roleFilter || undefined),
       });
       setUsers(res.users || []);
     } catch (err: any) {
@@ -198,12 +198,16 @@ export const UsersList: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Users className="w-5 h-5 text-purple-600" />
-            User & Role Management
+            {isOfficer ? (
+              <Building2 className="w-5 h-5 text-indigo-600" />
+            ) : (
+              <Users className="w-5 h-5 text-purple-600" />
+            )}
+            <span>{isOfficer ? 'Vendor User Accounts' : 'User & Role Management'}</span>
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
             {isOfficer
-              ? 'Provision and maintain external supplier user logins linked to approved vendors'
+              ? 'Provision and maintain portal login credentials for approved marine suppliers'
               : 'Role-based access control, departmental assignments, and authentication status'}
           </p>
         </div>
@@ -223,7 +227,7 @@ export const UsersList: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search users by name or email..."
+            placeholder={isOfficer ? 'Search vendor users by name or email...' : 'Search users by name or email...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
@@ -231,18 +235,20 @@ export const UsersList: React.FC = () => {
           />
         </div>
 
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-600"
-        >
-          <option value="">All Roles</option>
-          <option value="REQUESTER">Requester</option>
-          <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
-          <option value="APPROVER">Approver</option>
-          <option value="ADMIN">Administrator</option>
-          <option value="VENDOR">Vendor Portal</option>
-        </select>
+        {!isOfficer && (
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-600"
+          >
+            <option value="">All Roles</option>
+            <option value="REQUESTER">Requester</option>
+            <option value="PROCUREMENT_OFFICER">Procurement Officer</option>
+            <option value="APPROVER">Approver</option>
+            <option value="ADMIN">Administrator</option>
+            <option value="VENDOR">Vendor Portal</option>
+          </select>
+        )}
 
         <button
           onClick={loadUsers}
@@ -271,7 +277,9 @@ export const UsersList: React.FC = () => {
             <Users className="w-10 h-10 text-slate-300 mx-auto" />
             <h3 className="text-sm font-semibold text-slate-800">No Users Found</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              No system user accounts match the current filter criteria.
+              {isOfficer
+                ? 'No vendor portal user accounts found. Click "Add Vendor User" to provision credentials for an approved supplier.'
+                : 'No system user accounts match the current filter criteria.'}
             </p>
           </div>
         ) : (
@@ -388,7 +396,7 @@ export const UsersList: React.FC = () => {
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingUser ? `Edit User: ${editingUser.name}` : 'Register System User'}
+        title={editingUser ? `Edit User: ${editingUser.name}` : isOfficer ? 'Provision Vendor Portal Account' : 'Register System User'}
         maxWidth="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">

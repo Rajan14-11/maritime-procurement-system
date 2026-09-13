@@ -19,7 +19,10 @@ export async function listUsers(
         { email: { contains: String(search) } },
       ];
     }
-    if (role && Object.values(UserRole).includes(role as UserRole)) {
+    // Role-based scoping: Procurement Officers can only view Vendor user accounts
+    if (req.user?.role === UserRole.PROCUREMENT_OFFICER) {
+      where.role = UserRole.VENDOR;
+    } else if (role && Object.values(UserRole).includes(role as UserRole)) {
       where.role = role as string;
     }
     if (status && Object.values(UserStatus).includes(status as UserStatus)) {
@@ -83,6 +86,14 @@ export async function getUserById(
       res.status(404).json({
         success: false,
         message: 'User not found.',
+      });
+      return;
+    }
+
+    if (req.user?.role === UserRole.PROCUREMENT_OFFICER && user.role !== UserRole.VENDOR) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied. Procurement Officers are only authorized to view Vendor user accounts.',
       });
       return;
     }

@@ -164,7 +164,7 @@ export const App: React.FC = () => {
             <Route
               path="audit-logs"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'APPROVER']}>
                   <AuditLogsList />
                 </ProtectedRoute>
               }

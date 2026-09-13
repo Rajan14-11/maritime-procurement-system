@@ -102,7 +102,7 @@ export const MainLayout: React.FC = () => {
       roles: ['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER'],
     },
     {
-      name: 'User Management',
+      name: user?.role === 'PROCUREMENT_OFFICER' ? 'Vendor User Accounts' : 'User Management',
       href: '/users',
       icon: Users,
       roles: ['ADMIN', 'PROCUREMENT_OFFICER'],
@@ -111,7 +111,7 @@ export const MainLayout: React.FC = () => {
       name: 'System Audit Logs',
       href: '/audit-logs',
       icon: History,
-      roles: ['ADMIN', 'APPROVER', 'PROCUREMENT_OFFICER'],
+      roles: ['ADMIN', 'APPROVER'],
     },
   ];
 

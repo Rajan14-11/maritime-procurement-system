@@ -403,12 +403,33 @@ async function runAdversarialTests() {
       `Got status ${auditRes.status}`
     );
 
+    const officerAuditRes = await api('/api/audit-logs', {
+      token: officerToken,
+    });
+    assert(
+      officerAuditRes.status === 403,
+      '10b. Procurement Officer cannot access global audit logs (HTTP 403 returned)',
+      `Got status ${officerAuditRes.status}`
+    );
+
+    const officerUsersRes = await api('/api/users', {
+      token: officerToken,
+    });
+    const allUsersAreVendors = officerUsersRes.status === 200 &&
+      Array.isArray(officerUsersRes.data.data.users) &&
+      officerUsersRes.data.data.users.every((u: any) => u.role === UserRole.VENDOR);
+    assert(
+      allUsersAreVendors,
+      '10c. Procurement Officer user list is strictly scoped to VENDOR accounts only',
+      `Got non-vendor users or non-200 status`
+    );
+
     const adminAuditRes = await api('/api/audit-logs', {
       token: adminToken,
     });
     assert(
       adminAuditRes.status === 200 && Array.isArray(adminAuditRes.data.data.logs),
-      '10b. Admin / Manager can access audit logs (HTTP 200 returned)'
+      '10d. Admin / Manager can access audit logs (HTTP 200 returned)'
     );
 
     // --- TEST 11: Non-Admin cannot create or update vessels (HTTP 403) ---
