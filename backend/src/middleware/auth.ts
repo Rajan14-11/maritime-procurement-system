@@ -56,6 +56,7 @@ export async function authenticateToken(
             vendorCode: true,
             name: true,
             status: true,
+            paymentTerms: true,
           },
         },
       },

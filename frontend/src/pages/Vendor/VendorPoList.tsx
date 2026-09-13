@@ -259,7 +259,7 @@ export const VendorPoList: React.FC = () => {
 
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-900 font-mono text-sm">
-                          ${po.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ${Number(po.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-[10px] text-slate-500">
                           {po.paymentTerms || 'Standard Terms'}
@@ -581,10 +581,10 @@ export const VendorPoList: React.FC = () => {
                           {item.quantity} {item.unit}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          ${item.unitPrice.toFixed(2)}
+                          ${Number(item.unitPrice || 0).toFixed(2)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                          ${item.total.toFixed(2)}
+                          ${Number(item.total || 0).toFixed(2)}
                         </td>
                       </tr>
                     ))}
@@ -595,7 +595,7 @@ export const VendorPoList: React.FC = () => {
                         Order Total:
                       </td>
                       <td className="py-2 px-3 text-right font-mono text-sm font-bold text-indigo-700">
-                        ${selectedPo.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${Number(selectedPo.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   </tfoot>

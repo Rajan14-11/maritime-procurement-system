@@ -85,8 +85,10 @@ export const VendorRfqList: React.FC = () => {
     setIsReadOnly(readOnlyMode);
     setFormError(null);
 
-    // Find vendor's own quotation if already submitted
-    const myQuote = rfq.quotations?.find((q) => q.vendorId === user?.vendorId) || null;
+    // Find vendor's own quotation if already submitted (backend strictly scopes quotations for vendors)
+    const myQuote =
+      rfq.quotations?.find((q) => q.vendorId === user?.vendorId) ||
+      (rfq.quotations && rfq.quotations.length > 0 ? rfq.quotations[0] : null);
     setExistingQuote(myQuote);
 
     const prItems = rfq.purchaseRequest?.items || [];
@@ -301,7 +303,9 @@ export const VendorRfqList: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {rfqs.map((rfq) => {
-                  const myQuote = rfq.quotations?.find((q) => q.vendorId === user?.vendorId);
+                  const myQuote =
+                    rfq.quotations?.find((q) => q.vendorId === user?.vendorId) ||
+                    (rfq.quotations && rfq.quotations.length > 0 ? rfq.quotations[0] : null);
                   const isDeadlinePassed = new Date(rfq.deadline) < new Date();
                   const canSubmitOrRevise = rfq.status === 'OPEN' && !isDeadlinePassed;
 
@@ -358,12 +362,12 @@ export const VendorRfqList: React.FC = () => {
                           myQuote.status === 'SELECTED' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                               <Check className="w-3 h-3" />
-                              Awarded (${myQuote.totalPrice.toLocaleString()})
+                              Awarded (${Number(myQuote.totalPrice || 0).toLocaleString()})
                             </span>
                           ) : (
                             <div className="space-y-0.5">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">
-                                Submitted: ${myQuote.totalPrice.toLocaleString()}
+                                Submitted: ${Number(myQuote.totalPrice || 0).toLocaleString()}
                               </span>
                               <div className="text-[10px] text-slate-500 font-mono">
                                 {myQuote.quotationNumber}
@@ -496,7 +500,7 @@ export const VendorRfqList: React.FC = () => {
                       <td className="py-2.5 px-3 text-right">
                         {isReadOnly ? (
                           <span className="font-mono font-semibold text-slate-900">
-                            ${item.unitPrice.toFixed(2)}
+                            ${Number(item.unitPrice || 0).toFixed(2)}
                           </span>
                         ) : (
                           <input
@@ -512,7 +516,7 @@ export const VendorRfqList: React.FC = () => {
                         )}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                        ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${Number(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
@@ -523,7 +527,7 @@ export const VendorRfqList: React.FC = () => {
                       Quotation Subtotal:
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-sm font-bold text-indigo-700">
-                      ${calculatedSubtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${Number(calculatedSubtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
                 </tfoot>

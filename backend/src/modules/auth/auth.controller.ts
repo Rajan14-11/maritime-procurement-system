@@ -26,6 +26,9 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
         vessel: {
           select: { id: true, name: true, imoNumber: true, status: true },
         },
+        vendor: {
+          select: { id: true, vendorCode: true, name: true, status: true, paymentTerms: true },
+        },
       },
     });
 
@@ -60,6 +63,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
         id: user.id,
         email: user.email,
         role: user.role,
+        vendorId: user.vendorId,
       },
       JWT_SECRET,
       { expiresIn: '7d' }
@@ -90,6 +94,8 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
           status: user.status,
           vesselId: user.vesselId,
           vessel: user.vessel,
+          vendorId: user.vendorId,
+          vendor: user.vendor,
         },
       },
     });
